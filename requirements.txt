@@ -1,0 +1,12 @@
+Flask==2.3.3
+Flask-SQLAlchemy==3.0.5
+Flask-Login==0.6.3
+Flask-WTF==1.1.1
+Werkzeug==2.3.7
+numpy==1.24.3
+pandas==2.0.3
+openpyxl==3.1.2
+fpdf==1.7.2
+Pillow
+python-dotenv==1.0.0
+email-validator==2.0.0 

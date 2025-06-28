@@ -1,0 +1,311 @@
+{% extends "base.html" %}
+{% block title %}Add Device - Mobile Shop Manager{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 style="font-weight:700;">Add Device</h2>
+</div>
+
+<!-- Mode Selection -->
+<div class="row mb-4 g-3">
+    <div class="col-md-6 col-12">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-mobile-alt fa-3x text-primary mb-3"></i>
+                <h5 class="card-title">Single Device</h5>
+                <p class="card-text">Add one device with its IMEI</p>
+                <button class="btn btn-primary" onclick="showSingleDeviceForm()">
+                    <i class="fas fa-plus me-2"></i>Add Single Device
+                </button>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-12">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-boxes fa-3x text-success mb-3"></i>
+                <h5 class="card-title">Bulk Add</h5>
+                <p class="card-text">Add multiple devices with different IMEIs</p>
+                <button class="btn btn-success" onclick="showBulkAddForm()">
+                    <i class="fas fa-plus me-2"></i>Bulk Add Devices
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Single Device Form -->
+<div id="singleDeviceForm" class="card" style="display: none;">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-mobile-alt me-2"></i>Add Single Device</h5>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('add_single_device') }}" id="singleForm">
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <label class="form-label">Brand</label>
+                    <select class="form-select" name="brand_id" id="singleBrandSelect" required>
+                        <option value="">Select Brand</option>
+                        {% for brand in brands %}
+                        <option value="{{ brand.id }}">{{ brand.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Model</label>
+                    <select class="form-select" name="model_id" id="singleModelSelect" required>
+                        <option value="">Select Model</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Distributor</label>
+                    <select class="form-select" name="distributor_id" required>
+                        <option value="">Select Distributor</option>
+                        {% for distributor in distributors %}
+                        <option value="{{ distributor.id }}">{{ distributor.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <label class="form-label">Price (PKR)</label>
+                    <input type="number" class="form-control" name="price" id="singlePriceInput" min="0" step="0.01" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Date</label>
+                    <input type="text" class="form-control" value="{{ now().strftime('%Y-%m-%d %H:%M') }}" readonly>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">IMEI Number</label>
+                    <div class="d-flex">
+                        <input type="text" class="form-control" name="imei_number" id="singleImeiInput" placeholder="Scan or enter IMEI" required autofocus>
+                        <button type="button" class="btn btn-outline-secondary ms-2" onclick="startIMEIScanner('single')">
+                            <i class="fas fa-barcode"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="d-flex justify-content-end">
+                <button type="button" class="btn btn-secondary me-2" onclick="hideForms()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Add Device</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Bulk Add Form -->
+<div id="bulkAddForm" class="card" style="display: none;">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-boxes me-2"></i>Bulk Add Devices</h5>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('add_bulk_devices') }}" id="bulkForm">
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <label class="form-label">Brand</label>
+                    <select class="form-select" name="brand_id" id="bulkBrandSelect" required>
+                        <option value="">Select Brand</option>
+                        {% for brand in brands %}
+                        <option value="{{ brand.id }}">{{ brand.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Model</label>
+                    <select class="form-select" name="model_id" id="bulkModelSelect" required>
+                        <option value="">Select Model</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Distributor</label>
+                    <select class="form-select" name="distributor_id" required>
+                        <option value="">Select Distributor</option>
+                        {% for distributor in distributors %}
+                        <option value="{{ distributor.id }}">{{ distributor.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <label class="form-label">Price per Device (PKR)</label>
+                    <input type="number" class="form-control" name="price" id="bulkPriceInput" min="0" step="0.01" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Date</label>
+                    <input type="text" class="form-control" value="{{ now().strftime('%Y-%m-%d %H:%M') }}" readonly>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">IMEI Numbers</label>
+                    <div class="d-flex">
+                        <input type="text" class="form-control" id="bulkImeiInput" placeholder="Scan or enter IMEI" autofocus>
+                        <button type="button" class="btn btn-outline-secondary ms-2" onclick="startIMEIScanner('bulk')">
+                            <i class="fas fa-barcode"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-success ms-2" onclick="addImeiToBulk()">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">IMEI List</label>
+                <div id="bulkImeiList" class="border rounded p-3" style="min-height: 100px;">
+                    <p class="text-muted mb-0">No IMEIs added yet. Scan or enter IMEIs above.</p>
+                </div>
+            </div>
+            <div class="d-flex justify-content-end">
+                <button type="button" class="btn btn-secondary me-2" onclick="hideForms()">Cancel</button>
+                <button type="submit" class="btn btn-success">Add All Devices</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- IMEI Scanner - External barcode scanner only -->
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentScannerMode = '';
+let bulkImeis = [];
+
+// Show/hide forms
+function showSingleDeviceForm() {
+    document.getElementById('singleDeviceForm').style.display = 'block';
+    document.getElementById('bulkAddForm').style.display = 'none';
+}
+
+function showBulkAddForm() {
+    document.getElementById('singleDeviceForm').style.display = 'none';
+    document.getElementById('bulkAddForm').style.display = 'block';
+}
+
+function hideForms() {
+    document.getElementById('singleDeviceForm').style.display = 'none';
+    document.getElementById('bulkAddForm').style.display = 'none';
+}
+
+// Brand -> Model dynamic dropdowns
+function setupBrandModelDropdown(brandSelectId, modelSelectId, priceInputId) {
+    document.getElementById(brandSelectId).addEventListener('change', function() {
+        const brandId = this.value;
+        const modelSelect = document.getElementById(modelSelectId);
+        const priceInput = document.getElementById(priceInputId);
+        
+        if (brandId) {
+            fetch(`/api/models_by_brand/${brandId}`)
+                .then(res => res.json())
+                .then(models => {
+                    modelSelect.innerHTML = '<option value="">Select Model</option>';
+                    models.forEach(m => {
+                        modelSelect.innerHTML += `<option value="${m.id}" data-price="${m.price || ''}">${m.name}</option>`;
+                    });
+                });
+        } else {
+            modelSelect.innerHTML = '<option value="">Select Model</option>';
+            priceInput.value = '';
+        }
+    });
+    
+    // Auto-populate price when model is selected
+    document.getElementById(modelSelectId).addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        const priceInput = document.getElementById(priceInputId);
+        if (selectedOption && selectedOption.dataset.price) {
+            priceInput.value = selectedOption.dataset.price;
+        } else {
+            priceInput.value = '';
+        }
+    });
+}
+
+setupBrandModelDropdown('singleBrandSelect', 'singleModelSelect', 'singlePriceInput');
+setupBrandModelDropdown('bulkBrandSelect', 'bulkModelSelect', 'bulkPriceInput');
+
+// Bulk IMEI management
+function addImeiToBulk() {
+    const input = document.getElementById('bulkImeiInput');
+    const imei = input.value.trim();
+    
+    if (imei && !bulkImeis.includes(imei)) {
+        bulkImeis.push(imei);
+        updateBulkImeiList();
+        input.value = '';
+    } else if (bulkImeis.includes(imei)) {
+        alert('IMEI already added!');
+    }
+}
+
+function removeImeiFromBulk(index) {
+    bulkImeis.splice(index, 1);
+    updateBulkImeiList();
+}
+
+function updateBulkImeiList() {
+    const list = document.getElementById('bulkImeiList');
+    if (bulkImeis.length === 0) {
+        list.innerHTML = '<p class="text-muted mb-0">No IMEIs added yet. Scan or enter IMEIs above.</p>';
+    } else {
+        list.innerHTML = bulkImeis.map((imei, index) => 
+            `<div class="d-flex justify-content-between align-items-center mb-2">
+                <span>${imei}</span>
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeImeiFromBulk(${index})">
+                    <i class="fas fa-times"></i>
+                </button>
+             </div>`
+        ).join('');
+    }
+    
+    // Add hidden inputs for form submission
+    const form = document.getElementById('bulkForm');
+    // Remove existing hidden inputs
+    form.querySelectorAll('input[name="imeis[]"]').forEach(input => input.remove());
+    // Add new hidden inputs
+    bulkImeis.forEach(imei => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'imeis[]';
+        input.value = imei;
+        form.appendChild(input);
+    });
+}
+
+// IMEI Scanner - External barcode scanner only
+function startIMEIScanner(mode) {
+    currentScannerMode = mode;
+    
+    // Focus on the IMEI input field for external scanner
+    if (mode === 'single') {
+        document.getElementById('singleImeiInput').focus();
+        alert('Please scan IMEI using your external barcode scanner, or enter manually.');
+    } else if (mode === 'bulk') {
+        document.getElementById('bulkImeiInput').focus();
+        alert('Please scan IMEI using your external barcode scanner, or enter manually.');
+    }
+}
+
+// Handle Enter key in IMEI input fields for better UX
+document.getElementById('singleImeiInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        document.getElementById('singleForm').submit();
+    }
+});
+
+document.getElementById('bulkImeiInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        addImeiToBulk();
+    }
+});
+
+// Form validation
+document.getElementById('bulkForm').addEventListener('submit', function(e) {
+    if (bulkImeis.length === 0) {
+        e.preventDefault();
+        alert('Please add at least one IMEI before submitting.');
+    }
+});
+</script>
+{% endblock %} 

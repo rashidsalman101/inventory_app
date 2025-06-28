@@ -1,0 +1,586 @@
+{% extends "base.html" %}
+
+{% block title %}Shop Sales - Mobile Shop Manager{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-shopping-cart me-2"></i>Shop Sales</h2>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addShopSaleModal">
+                    <i class="fas fa-plus me-2"></i>Add Shop Sale
+                </button>
+            </div>
+
+            <!-- Shop Sales History -->
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-history me-2"></i>Shop Sales History</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Shop Keeper</th>
+                                    <th>Model</th>
+                                    <th>Brand</th>
+                                    <th>Quantity</th>
+                                    <th>Price per Unit</th>
+                                    <th>Total Amount</th>
+                                    <th>IMEIs</th>
+                                    <th>Payment Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for sale in shop_sales %}
+                                <tr>
+                                    <td>{{ sale.date.strftime('%Y-%m-%d %H:%M') }}</td>
+                                    <td>{{ sale.shop_keeper.name }} ({{ sale.shop_keeper.shop_name }})</td>
+                                    <td>{{ sale.model.name }}</td>
+                                    <td>{{ sale.model.brand.name }}</td>
+                                    <td>{{ sale.quantity }}</td>
+                                    <td>PKR {{ "%.2f"|format(sale.price) }}</td>
+                                    <td>PKR {{ "%.2f"|format(sale.price * sale.quantity) }}</td>
+                                    <td>
+                                        {% for imei in sale.imeis %}
+                                            {{ imei.imei_number }}{% if not loop.last %}, {% endif %}
+                                        {% endfor %}
+                                    </td>
+                                    <td>
+                                        {% if sale.is_paid %}
+                                            <span class="badge bg-success">Paid</span>
+                                        {% else %}
+                                            <span class="badge bg-warning">Pending</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if not sale.is_paid %}
+                                            <button class="btn btn-sm btn-outline-success" 
+                                                    onclick="markAsPaid({{ sale.id }})">
+                                                <i class="fas fa-check"></i> Mark Paid
+                                            </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Shop Sale Modal -->
+<div class="modal fade" id="addShopSaleModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Shop Sale</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-4">
+                    <!-- Sale Details Column -->
+                    <div class="col-md-5 col-12">
+                        <h6 class="border-bottom pb-2">Sale Details</h6>
+                        
+                        <!-- Shop Keeper Selection -->
+                        <div class="mb-3">
+                            <label for="shopKeeperSelect" class="form-label">Shop Keeper *</label>
+                            <select class="form-select" id="shopKeeperSelect" required>
+                                <option value="">Select Shop Keeper</option>
+                                {% for shop_keeper in shop_keepers %}
+                                <option value="{{ shop_keeper.id }}">{{ shop_keeper.name }} ({{ shop_keeper.shop_name }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Brand Selection -->
+                        <div class="mb-3">
+                            <label for="brandSelect" class="form-label">Brand</label>
+                            <select class="form-select" id="brandSelect">
+                                <option value="">All Brands</option>
+                                {% for brand in brands %}
+                                <option value="{{ brand.id }}">{{ brand.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Model Selection -->
+                        <div class="mb-3">
+                            <label for="modelSelect" class="form-label">Model</label>
+                            <select class="form-select" id="modelSelect">
+                                <option value="">All Models</option>
+                                {% for model in models %}
+                                <option value="{{ model.id }}" data-brand="{{ model.brand_id }}" data-price="{{ model.price or '' }}">
+                                    {{ model.brand.name }} - {{ model.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Price per Unit -->
+                        <div class="mb-3">
+                            <label for="price" class="form-label">Price per Unit (PKR) *</label>
+                            <input type="number" class="form-control" id="price" step="0.01" min="0" required>
+                        </div>
+
+                        <!-- Quantity (Auto-calculated) -->
+                        <div class="mb-3">
+                            <label class="form-label">Quantity</label>
+                            <input type="number" class="form-control" id="quantity" value="0" min="0" readonly>
+                        </div>
+
+                        <!-- Total Price (Auto-calculated) -->
+                        <div class="mb-3">
+                            <label class="form-label">Total Price (PKR)</label>
+                            <input type="text" class="form-control" id="totalPrice" value="PKR 0.00" readonly>
+                        </div>
+
+                        <!-- Payment Status -->
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="isPaid" checked>
+                                <label class="form-check-label" for="isPaid">
+                                    Payment Received
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Device Selection Column -->
+                    <div class="col-md-7 col-12">
+                        <h6 class="border-bottom pb-2">Device Selection</h6>
+                        
+                        <!-- Filters -->
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-4 col-12">
+                                <select class="form-select" id="filterBrand">
+                                    <option value="">All Brands</option>
+                                    {% for brand in brands %}
+                                    <option value="{{ brand.id }}">{{ brand.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4 col-12">
+                                <select class="form-select" id="filterModel">
+                                    <option value="">All Models</option>
+                                    {% for model in models %}
+                                    <option value="{{ model.id }}" data-brand="{{ model.brand_id }}">
+                                        {{ model.brand.name }} - {{ model.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4 col-12">
+                                <input type="text" class="form-control" id="deviceSearch" placeholder="Search by IMEI">
+                            </div>
+                        </div>
+
+                        <!-- IMEI Scanner -->
+                        <div class="input-group mb-3">
+                            <input type="text" class="form-control" id="scanImeiInput" placeholder="Scan or enter IMEI">
+                            <button class="btn btn-outline-primary" type="button" onclick="scanImei()">
+                                <i class="fas fa-barcode"></i> Scan
+                            </button>
+                        </div>
+
+                        <!-- Scan Feedback -->
+                        <div id="scanPrompt" class="alert alert-info d-none" role="alert">
+                            Ready to scan IMEI with your barcode scanner...
+                        </div>
+                        <div id="scanFeedback" class="alert d-none" role="alert"></div>
+
+                        <!-- Available Devices -->
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="mb-0">Available Devices</h6>
+                                <small class="text-muted" id="deviceCounts">Loading...</small>
+                            </div>
+                            <div id="availableDevices" style="max-height: 300px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 0.375rem;"></div>
+                        </div>
+
+                        <!-- Selected IMEIs -->
+                        <div class="mb-3">
+                            <h6 class="mb-2">Selected IMEIs</h6>
+                            <div id="selectedImeis"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="processShopSale()">Add Sale</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let selectedImeis = [];
+let allDevices = [];
+let filteredDevices = [];
+
+// Initialize modal
+$('#addShopSaleModal').on('shown.bs.modal', function () {
+    console.log('Modal shown - starting initialization...');
+    loadAvailableDevices();
+    resetForm();
+});
+
+$('#addShopSaleModal').on('hidden.bs.modal', function () {
+    console.log('Modal hidden - cleaning up...');
+    selectedImeis = [];
+    allDevices = [];
+    filteredDevices = [];
+    resetForm();
+});
+
+function loadAvailableDevices() {
+    console.log('Loading available devices...');
+    const container = document.getElementById('availableDevices');
+    const deviceCounts = document.getElementById('deviceCounts');
+    
+    // Show loading state
+    container.innerHTML = '<div class="p-3 text-center"><i class="fas fa-spinner fa-spin"></i> Loading devices...</div>';
+    deviceCounts.textContent = 'Loading...';
+    
+    fetch('/api/available_devices')
+        .then(response => {
+            console.log('Response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Available devices data:', data);
+            allDevices = data;
+            filteredDevices = allDevices;
+            displayAvailableDevices();
+        })
+        .catch(error => {
+            console.error('Error loading devices:', error);
+            container.innerHTML = '<div class="p-3 text-center text-danger">Error loading devices: ' + error.message + '</div>';
+            deviceCounts.textContent = 'Error';
+            showToast('Error loading devices: ' + error.message, 'error');
+        });
+}
+
+function resetForm() {
+    console.log('Resetting form...');
+    selectedImeis = [];
+    updateSelectedImeisDisplay();
+    $('#deviceSearch').val('');
+    $('#scanImeiInput').val('');
+    $('#quantity').val(0);
+    $('#totalPrice').val('PKR 0.00');
+    $('#price').val('');
+    $('#brandSelect').val('');
+    $('#modelSelect').val('');
+    $('#shopKeeperSelect').val('');
+    $('#isPaid').prop('checked', true);
+    console.log('Form reset complete');
+}
+
+// Filter event handlers
+$('#filterBrand').on('change', function() {
+    updateFilterModelOptions();
+    filterAndDisplayDevices();
+});
+
+$('#filterModel').on('change', filterAndDisplayDevices);
+$('#deviceSearch').on('input', filterAndDisplayDevices);
+
+// Sale details event handlers
+$('#brandSelect').on('change', function() {
+    const brandId = $(this).val();
+    $('#modelSelect option').each(function() {
+        if (!brandId || $(this).data('brand') == brandId) {
+            $(this).show();
+        } else {
+            $(this).hide();
+        }
+    });
+    $('#modelSelect').val('');
+    $('#price').val('');
+    filterAndDisplayDevices();
+});
+
+$('#modelSelect').on('change', function() {
+    const selectedOption = this.options[this.selectedIndex];
+    if (selectedOption && selectedOption.dataset.price) {
+        $('#price').val(selectedOption.dataset.price);
+    } else {
+        $('#price').val('');
+    }
+    filterAndDisplayDevices();
+    updateTotalPrice();
+});
+
+$('#price').on('input', updateTotalPrice);
+
+function updateFilterModelOptions() {
+    const brandId = $('#filterBrand').val();
+    $('#filterModel option').each(function() {
+        if (!brandId || $(this).data('brand') == brandId) {
+            $(this).show();
+        } else {
+            $(this).hide();
+        }
+    });
+    $('#filterModel').val('');
+}
+
+function filterAndDisplayDevices() {
+    const brandId = $('#filterBrand').val();
+    const modelId = $('#filterModel').val();
+    const search = $('#deviceSearch').val().toLowerCase();
+    
+    filteredDevices = allDevices.filter(device => {
+        const brandMatch = !brandId || device.brand_id == brandId;
+        const modelMatch = !modelId || device.model_id == modelId;
+        const searchMatch = !search || device.imei_number.toLowerCase().includes(search);
+        return brandMatch && modelMatch && searchMatch;
+    });
+    
+    displayAvailableDevices();
+}
+
+function displayAvailableDevices() {
+    console.log('Displaying devices. Filtered devices:', filteredDevices);
+    const container = document.getElementById('availableDevices');
+    const deviceCounts = document.getElementById('deviceCounts');
+    
+    if (filteredDevices.length === 0) {
+        container.innerHTML = '<div class="p-3 text-center text-muted">No available devices found. <a href="/add_device">Add Device</a></div>';
+        deviceCounts.textContent = 'No devices';
+        return;
+    }
+    
+    let html = '<div class="list-group list-group-flush">';
+    filteredDevices.forEach(device => {
+        const isSelected = selectedImeis.includes(device.imei_number);
+        html += `
+            <div class="list-group-item d-flex justify-content-between align-items-center ${isSelected ? 'list-group-item-success' : ''}">
+                <div class="flex-grow-1">
+                    <div class="fw-bold">${device.imei_number}</div>
+                    <small class="text-muted">${device.brand_name} - ${device.model_name}</small><br>
+                    <small class="text-muted">Purchase: PKR ${device.purchase_price.toFixed(2)}</small>
+                </div>
+                <button class="btn btn-sm ${isSelected ? 'btn-success' : 'btn-outline-primary'}" 
+                        onclick="toggleDeviceSelection('${device.imei_number}')" 
+                        ${isSelected ? 'disabled' : ''}>
+                    <i class="fas ${isSelected ? 'fa-check' : 'fa-plus'}"></i>
+                </button>
+            </div>
+        `;
+    });
+    html += '</div>';
+    
+    container.innerHTML = html;
+    deviceCounts.textContent = `Available: ${filteredDevices.length} | Selected: ${selectedImeis.length}`;
+    console.log('Devices displayed. Count:', filteredDevices.length);
+}
+
+function toggleDeviceSelection(imeiNumber) {
+    if (selectedImeis.includes(imeiNumber)) {
+        selectedImeis = selectedImeis.filter(imei => imei !== imeiNumber);
+        showToast('IMEI deselected', 'warning');
+    } else {
+        selectedImeis.push(imeiNumber);
+        showToast('IMEI selected', 'success');
+    }
+    
+    updateSelectedImeisDisplay();
+    $('#quantity').val(selectedImeis.length);
+    updateTotalPrice();
+    displayAvailableDevices();
+}
+
+function updateTotalPrice() {
+    const price = parseFloat($('#price').val()) || 0;
+    const quantity = selectedImeis.length;
+    const total = price * quantity;
+    $('#totalPrice').val('PKR ' + total.toFixed(2));
+}
+
+function updateSelectedImeisDisplay() {
+    const container = document.getElementById('selectedImeis');
+    
+    if (selectedImeis.length === 0) {
+        container.innerHTML = '<div class="text-muted p-2">No IMEIs selected</div>';
+        return;
+    }
+    
+    let html = '<div class="list-group">';
+    selectedImeis.forEach(imeiNumber => {
+        const device = allDevices.find(d => d.imei_number === imeiNumber);
+        html += `
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>${imeiNumber}</strong><br>
+                    <small class="text-muted">${device ? device.brand_name + ' - ' + device.model_name : ''}</small>
+                </div>
+                <button class="btn btn-sm btn-outline-danger" onclick="removeImei('${imeiNumber}')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+    });
+    html += '</div>';
+    
+    container.innerHTML = html;
+}
+
+function removeImei(imeiNumber) {
+    selectedImeis = selectedImeis.filter(imei => imei !== imeiNumber);
+    updateSelectedImeisDisplay();
+    $('#quantity').val(selectedImeis.length);
+    updateTotalPrice();
+    displayAvailableDevices();
+}
+
+function scanImei() {
+    const scanPrompt = document.getElementById('scanPrompt');
+    const scanFeedback = document.getElementById('scanFeedback');
+    
+    scanPrompt.classList.remove('d-none');
+    scanFeedback.classList.add('d-none');
+    
+    const input = document.getElementById('scanImeiInput');
+    input.focus();
+    input.value = '';
+    
+    input.onkeypress = function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const imei = input.value.trim();
+            scanPrompt.classList.add('d-none');
+            
+            if (!imei) return;
+            
+            const found = filteredDevices.find(device => device.imei_number === imei);
+            if (found && !selectedImeis.includes(imei)) {
+                selectedImeis.push(imei);
+                updateSelectedImeisDisplay();
+                $('#quantity').val(selectedImeis.length);
+                updateTotalPrice();
+                displayAvailableDevices();
+                input.value = '';
+                
+                scanFeedback.textContent = 'IMEI found and selected!';
+                scanFeedback.className = 'alert alert-success';
+                scanFeedback.classList.remove('d-none');
+            } else if (!found) {
+                scanFeedback.textContent = 'IMEI not found in available devices';
+                scanFeedback.className = 'alert alert-danger';
+                scanFeedback.classList.remove('d-none');
+            }
+            
+            setTimeout(() => scanFeedback.classList.add('d-none'), 3000);
+        }
+    };
+}
+
+function processShopSale() {
+    const shopKeeperId = $('#shopKeeperSelect').val();
+    const modelId = $('#modelSelect').val();
+    const price = parseFloat($('#price').val());
+    const isPaid = $('#isPaid').is(':checked');
+    const quantity = selectedImeis.length;
+    
+    if (!shopKeeperId) {
+        showToast('Please select a shop keeper', 'error');
+        return;
+    }
+    
+    if (!price || price <= 0) {
+        showToast('Please enter a valid price', 'error');
+        return;
+    }
+    
+    if (quantity === 0) {
+        showToast('Please select at least one device', 'error');
+        return;
+    }
+    
+    const data = {
+        shop_keeper_id: shopKeeperId,
+        model_id: modelId || null,
+        price: price,
+        quantity: quantity,
+        imeis: selectedImeis,
+        is_paid: isPaid
+    };
+    
+    fetch('/add_shop_sale', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Shop sale added successfully!', 'success');
+            $('#addShopSaleModal').modal('hide');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast('Error: ' + (data.error || 'Unknown error'), 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('Error processing sale', 'error');
+    });
+}
+
+function markAsPaid(transactionId) {
+    if (confirm('Mark this transaction as paid?')) {
+        fetch(`/mark_paid/${transactionId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast('Payment marked as received', 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showToast('Error marking payment', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Error marking payment', 'error');
+        });
+    }
+}
+
+function showToast(message, type = 'info') {
+    // Simple toast implementation
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type === 'error' ? 'danger' : type} position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    toast.textContent = message;
+    
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
+}
+</script>
+{% endblock %} 

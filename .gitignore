@@ -1,0 +1,13 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
+# SQLite database
+*.db
+
+# Environment
+venv/
+.env
+
+# Uploaded files
+static/uploads/ 

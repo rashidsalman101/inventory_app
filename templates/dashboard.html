@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Mobile Shop Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 style="font-weight:700;">Welcome back, {{ current_user.name.split(' ')[0] }}</h2>
+    <div>
+        <a href="{{ url_for('export_comprehensive_report') }}" class="btn btn-success">
+            <i class="fas fa-file-excel me-2"></i>Export Comprehensive Report
+        </a>
+    </div>
+</div>
+
+<div class="summary-cards">
+    <div class="summary-card">
+        <p>Total Profit</p>
+        <h2>PKR {{ "{:,}".format(gross_profit) }}</h2>
+    </div>
+    <div class="summary-card">
+        <p>Net Profit (Including Incentives)</p>
+        <h2>PKR {{ "{:,}".format(gross_profit) }}</h2>
+    </div>
+    <div class="summary-card">
+        <p>Net Profit (Excluding Incentives)</p>
+        <h2>PKR {{ "{:,}".format(gross_profit) }}</h2>
+    </div>
+    <div class="summary-card">
+        <p>Gross Profit</p>
+        <h2>PKR {{ "{:,}".format(gross_profit) }}</h2>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-lg-7">
+        <div class="chart-container">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h5 class="mb-0" style="font-weight:600;">Profit Trend</h5>
+                <select class="form-select form-select-sm w-auto" style="min-width:100px;">
+                    <option>Last 30 d</option>
+                    <option>Last 7 d</option>
+                </select>
+            </div>
+            <canvas id="profitTrendChart" height="120"></canvas>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="recent-activity">
+            <h5 class="mb-3" style="font-weight:600;">Recent Activity</h5>
+            {% for t in recent_transactions %}
+            <div class="activity-row">
+                <div class="activity-icon bg-success-subtle">
+                    <i class="fas fa-arrow-up"></i>
+                </div>
+                <div>
+                    <div style="font-weight:600;">{{ t.type.title() }}</div>
+                    <div class="text-muted" style="font-size:0.95rem;">{{ t.date.strftime('%B %d, %Y %I:%M %p') }}</div>
+                </div>
+                <div class="ms-auto" style="font-weight:600;">PKR {{ "{:,}".format(t.price * t.quantity) }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const ctx = document.getElementById('profitTrendChart').getContext('2d');
+const profitTrendChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: ['Jan 1', 'Jan 5', 'Jan 9', 'Jan 13', 'Jan 17', 'Jan 21', 'Jan 25'],
+        datasets: [{
+            label: 'Profit',
+            data: [500, 900, 700, 1200, 950, 1300, 1500],
+            borderColor: '#3ca97b',
+            backgroundColor: 'rgba(60, 169, 123, 0.08)',
+            tension: 0.4,
+            pointRadius: 5,
+            pointBackgroundColor: '#3ca97b',
+            fill: true
+        }]
+    },
+    options: {
+        plugins: {
+            legend: { display: false }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: { color: '#b0bfc6', font: { size: 13 } },
+                grid: { color: '#e0e7e3' }
+            },
+            x: {
+                ticks: { color: '#b0bfc6', font: { size: 13 } },
+                grid: { display: false }
+            }
+        }
+    }
+});
+</script>
+{% endblock %} 

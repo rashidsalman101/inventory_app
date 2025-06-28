@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+
+{% block title %}Returns - Mobile Shop Manager{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-undo me-2"></i>Returns Management</h2>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#processReturnModal">
+                    <i class="fas fa-plus me-2"></i>Process Return
+                </button>
+            </div>
+
+            <!-- Return Processing Section -->
+            <div class="row mb-4 g-3">
+                <div class="col-md-6 col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-barcode me-2"></i>IMEI Scanner</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="input-group mb-2">
+                                <input type="text" class="form-control" id="imeiInput" placeholder="Scan or manually enter IMEI" autofocus>
+                                <button class="btn btn-outline-primary" type="button" onclick="focusImeiInput()">Scan IMEI</button>
+                                <button class="btn btn-success ms-2" type="button" onclick="addImeiManually()">Add IMEI</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-list me-2"></i>Selected IMEIs for Return</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="selectedImeis" class="mb-3">
+                                <p class="text-muted">No IMEIs selected for return</p>
+                            </div>
+                            <div class="mb-3">
+                                <label for="returnReason" class="form-label">Return Reason *</label>
+                                <textarea class="form-control" id="returnReason" rows="3" placeholder="Enter return reason..."></textarea>
+                            </div>
+                            <button class="btn btn-success" onclick="processReturn()">
+                                <i class="fas fa-check me-2"></i>Process Return
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Return History -->
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-history me-2"></i>Return History</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>IMEI</th>
+                                    <th>Model</th>
+                                    <th>Brand</th>
+                                    <th>Buyer</th>
+                                    <th>Return Reason</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for transaction in return_transactions %}
+                                <tr>
+                                    <td>{{ transaction.date.strftime('%Y-%m-%d %H:%M') }}</td>
+                                    <td>
+                                        {% for imei in transaction.returned_imeis %}
+                                            {{ imei.imei_number }}{% if not loop.last %}, {% endif %}
+                                        {% endfor %}
+                                    </td>
+                                    <td>{{ transaction.model.name }}</td>
+                                    <td>{{ transaction.model.brand.name }}</td>
+                                    <td>{{ transaction.buyer_name }}</td>
+                                    <td>{{ transaction.return_reason or 'N/A' }}</td>
+                                    <td><span class="badge bg-success">Processed</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Process Return Modal -->
+<div class="modal fade" id="processReturnModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Process Return</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Scan or Enter IMEI</h6>
+                        <div id="modalScanner" class="viewport mb-3"></div>
+                        <input type="text" class="form-control" id="modalImeiInput" placeholder="Enter IMEI manually">
+                        <button class="btn btn-outline-primary mt-2" onclick="addImeiFromModal()">Add IMEI</button>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Selected IMEIs</h6>
+                        <div id="modalSelectedImeis" class="mb-3">
+                            <p class="text-muted">No IMEIs selected</p>
+                        </div>
+                        <div class="mb-3">
+                            <label for="modalReturnReason" class="form-label">Return Reason *</label>
+                            <textarea class="form-control" id="modalReturnReason" rows="3"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="processReturnFromModal()">Process Return</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let selectedImeis = [];
+let soldImeis = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadSoldImeis();
+});
+
+function focusImeiInput() {
+    document.getElementById('imeiInput').focus();
+}
+
+function loadSoldImeis() {
+    fetch('/api/sold_imeis')
+        .then(response => response.json())
+        .then(data => {
+            soldImeis = data;
+        })
+        .catch(error => {
+            console.error('Error loading sold IMEIs:', error);
+        });
+}
+
+function addImeiManually() {
+    const imeiInput = document.getElementById('imeiInput');
+    const imei = imeiInput.value.trim();
+    if (imei && !selectedImeis.includes(imei)) {
+        selectedImeis.push(imei);
+        updateSelectedImeisDisplay();
+        imeiInput.value = '';
+        imeiInput.focus();
+    } else if (selectedImeis.includes(imei)) {
+        alert('IMEI already added!');
+    }
+}
+
+function updateSelectedImeisDisplay() {
+    const container = document.getElementById('selectedImeis');
+    if (selectedImeis.length === 0) {
+        container.innerHTML = '<p class="text-muted">No IMEIs selected for return</p>';
+        return;
+    }
+    let html = '<ul class="list-group">';
+    selectedImeis.forEach(imei => {
+        html += `<li class="list-group-item d-flex justify-content-between align-items-center">
+            <span>${imei}</span>
+            <button class="btn btn-sm btn-outline-danger" onclick="removeImei('${imei}')"><i class="fas fa-times"></i></button>
+        </li>`;
+    });
+    html += '</ul>';
+    container.innerHTML = html;
+}
+
+function removeImei(imei) {
+    selectedImeis = selectedImeis.filter(i => i !== imei);
+    updateSelectedImeisDisplay();
+}
+
+function processReturn() {
+    const reason = document.getElementById('returnReason').value.trim();
+    if (selectedImeis.length === 0) {
+        alert('Please add at least one IMEI for return.');
+        return;
+    }
+    if (!reason) {
+        alert('Please enter a return reason.');
+        return;
+    }
+    fetch('/process_return', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imei_numbers: selectedImeis, return_reason: reason })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Return processed successfully!');
+            location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    });
+}
+
+// Optionally, handle Enter key for quick add
+
+document.getElementById('imeiInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        addImeiManually();
+    }
+});
+</script>
+{% endblock %} 

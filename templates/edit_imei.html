@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Edit IMEI - Mobile Shop Manager{% endblock %}
+{% block content %}
+<h2 class="mb-4" style="font-weight:700;">Edit IMEI</h2>
+<form method="POST" class="card p-4" id="editImeiForm">
+    <div class="mb-3">
+        <label class="form-label">IMEI Number</label>
+        <input type="text" class="form-control" value="{{ imei.imei_number }}" readonly>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Price (PKR)</label>
+        <input type="number" class="form-control" name="price" min="0" step="0.01" value="{{ imei.price or '' }}" required>
+    </div>
+    <div class="d-flex justify-content-end">
+        <button type="submit" class="btn btn-primary px-4">Update Price</button>
+    </div>
+</form>
+{% endblock %} 

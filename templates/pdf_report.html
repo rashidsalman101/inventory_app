@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Inventory Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; font-size: 14px; }
+        h2 { color: #2E7D32; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        th { background: #2E7D32; color: #fff; }
+    </style>
+</head>
+<body>
+    <h2>Inventory Transactions Report</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Model</th>
+                <th>Distributor</th>
+                <th>Quantity</th>
+                <th>Price</th>
+                <th>Total</th>
+                <th>Buyer</th>
+                <th>Paid</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for t in transactions %}
+            <tr>
+                <td>{{ t.date.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td>{{ t.type.title() }}</td>
+                <td>{{ t.model.name }}</td>
+                <td>{{ t.distributor.name }}</td>
+                <td>{{ t.quantity }}</td>
+                <td>PKR {{ "%.2f"|format(t.price) }}</td>
+                <td>PKR {{ "%.2f"|format(t.price * t.quantity) }}</td>
+                <td>{{ t.buyer_name or '' }}</td>
+                <td>{{ 'Yes' if t.is_paid else 'No' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html> 
