@@ -7,4 +7,5 @@ openpyxl==3.1.2
 fpdf==1.7.2
 Pillow
 python-dotenv==1.0.0
-email-validator==2.0.0 
+email-validator==2.0.0
+gunicorn==20.1.0 
