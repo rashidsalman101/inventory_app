@@ -5,10 +5,10 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
 import os
-import pandas as pd
 from io import BytesIO
 import json
 from fpdf import FPDF
+from openpyxl import Workbook
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-change-in-production'
@@ -412,26 +412,28 @@ def delete_model(model_id):
 @login_required
 def export_excel():
     transactions = InventoryTransaction.query.all()
-    
     data = []
     for t in transactions:
-        data.append({
-            'Date': t.date.strftime('%Y-%m-%d %H:%M'),
-            'Type': t.type.title(),
-            'Model': t.model.name,
-            'Distributor': t.distributor.name,
-            'Quantity': t.quantity,
-            'Price': t.price,
-            'Total': t.price * t.quantity,
-            'Buyer': t.buyer_name or '',
-            'Paid': 'Yes' if t.is_paid else 'No'
-        })
-    
-    df = pd.DataFrame(data)
+        data.append([
+            t.date.strftime('%Y-%m-%d %H:%M'),
+            t.type.title(),
+            t.model.name,
+            t.distributor.name,
+            t.quantity,
+            t.price,
+            t.price * t.quantity,
+            t.buyer_name or '',
+            'Yes' if t.is_paid else 'No'
+        ])
+    headers = ['Date', 'Type', 'Model', 'Distributor', 'Quantity', 'Price', 'Total', 'Buyer', 'Paid']
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Transactions'
+    ws.append(headers)
+    for row in data:
+        ws.append(row)
     output = BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, sheet_name='Transactions', index=False)
-    
+    wb.save(output)
     output.seek(0)
     return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                     as_attachment=True, download_name='inventory_report.xlsx')
@@ -764,20 +766,15 @@ def add_sale_transaction():
 def export_comprehensive_report():
     """Export comprehensive report with all stats and data"""
     try:
-        # Get all data from database
         transactions = InventoryTransaction.query.order_by(InventoryTransaction.date.desc()).all()
         recent_transactions = InventoryTransaction.query.order_by(InventoryTransaction.date.desc()).limit(5).all()
         brands = Brand.query.all()
         imeis = IMEI.query.all()
-        
-        # Calculate statistics
         purchases = InventoryTransaction.query.filter_by(type='purchase').all()
         sales = InventoryTransaction.query.filter_by(type='sale').all()
-        
         total_revenue = sum(s.price * s.quantity for s in sales) if sales else 0
         total_cost = sum(p.price * p.quantity for p in purchases) if purchases else 0
         gross_profit = total_revenue - total_cost
-        
         total_purchases = sum(p.quantity for p in purchases) if purchases else 0
         total_sales = sum(s.quantity for s in sales) if sales else 0
         available_devices = IMEI.query.filter_by(status='available').count()
@@ -785,142 +782,108 @@ def export_comprehensive_report():
         total_brands = Brand.query.count()
         total_models = Model.query.count()
         total_distributors = Distributor.query.count()
-        
-        # Create Excel file in memory
+        wb = Workbook()
+        # 1. Dashboard Summary Sheet
+        ws1 = wb.active
+        ws1.title = 'Dashboard Summary'
+        ws1.append(['Metric', 'Value'])
+        summary_rows = [
+            ['Total Profit', f"PKR {gross_profit:,.2f}"],
+            ['Total Revenue', f"PKR {total_revenue:,.2f}"],
+            ['Total Cost', f"PKR {total_cost:,.2f}"],
+            ['Total Devices Purchased', total_purchases],
+            ['Total Devices Sold', total_sales],
+            ['Available Devices', available_devices],
+            ['Total IMEIs', total_imeis],
+            ['Total Brands', total_brands],
+            ['Total Models', total_models],
+            ['Total Distributors', total_distributors],
+        ]
+        for row in summary_rows:
+            ws1.append(row)
+        # 2. All Transactions Sheet
+        ws2 = wb.create_sheet('All Transactions')
+        ws2.append(['Date', 'Type', 'Brand', 'Model', 'Distributor', 'Quantity', 'Price per Unit', 'Total Amount', 'Buyer Name', 'Payment Status'])
+        for t in transactions:
+            ws2.append([
+                t.date.strftime('%Y-%m-%d %H:%M'),
+                t.type.title(),
+                t.model.brand.name,
+                t.model.name,
+                t.distributor.name,
+                t.quantity,
+                f"PKR {t.price:.2f}",
+                f"PKR {t.price * t.quantity:.2f}",
+                t.buyer_name or 'N/A',
+                'Paid' if t.is_paid else 'Pending' if t.type == 'sale' else 'N/A'
+            ])
+        # 3. Device Inventory Sheet
+        ws3 = wb.create_sheet('Device Inventory')
+        ws3.append(['Brand', 'Model', 'Distributor', 'IMEI', 'Status', 'Price', 'Buyer Name', 'Sold On'])
+        for imei in imeis:
+            ws3.append([
+                imei.model.brand.name,
+                imei.model.name,
+                imei.model.distributor.name,
+                imei.imei_number,
+                imei.status.title(),
+                f"PKR {imei.price:.2f}" if imei.price else 'N/A',
+                imei.buyer_name or 'N/A',
+                imei.sold_on.strftime('%Y-%m-%d %H:%M') if imei.sold_on else 'N/A'
+            ])
+        # 4. Brands and Models Sheet
+        ws4 = wb.create_sheet('Brands & Models')
+        ws4.append(['Brand', 'Model', 'Distributor', 'Specifications', 'Created Date'])
+        for brand in brands:
+            for model in brand.models:
+                ws4.append([
+                    brand.name,
+                    model.name,
+                    model.distributor.name,
+                    model.specs or 'N/A',
+                    model.created_at.strftime('%Y-%m-%d')
+                ])
+        # 5. Profit Analysis Sheet
+        ws5 = wb.create_sheet('Profit Analysis')
+        ws5.append(['Sale Date', 'Model', 'Quantity', 'Selling Price', 'Purchase Price', 'Total Revenue', 'Total Cost', 'Profit/Loss', 'Profit Margin %'])
+        for t in transactions:
+            if t.type == 'sale':
+                purchase_price = 0
+                purchase_transaction = InventoryTransaction.query.filter_by(model_id=t.model_id, type='purchase').first()
+                if purchase_transaction:
+                    purchase_price = purchase_transaction.price
+                profit = (t.price - purchase_price) * t.quantity
+                ws5.append([
+                    t.date.strftime('%Y-%m-%d'),
+                    t.model.name,
+                    t.quantity,
+                    f"PKR {t.price:.2f}",
+                    f"PKR {purchase_price:.2f}",
+                    f"PKR {t.price * t.quantity:.2f}",
+                    f"PKR {purchase_price * t.quantity:.2f}",
+                    f"PKR {profit:.2f}",
+                    f"{((t.price - purchase_price) / purchase_price * 100):.1f}%" if purchase_price > 0 else 'N/A'
+                ])
+        # 6. Recent Activity Sheet
+        ws6 = wb.create_sheet('Recent Activity')
+        ws6.append(['Date', 'Activity', 'Amount', 'Type'])
+        for t in recent_transactions:
+            ws6.append([
+                t.date.strftime('%Y-%m-%d %I:%M %p'),
+                f"{t.type.title()} - {t.model.name}",
+                f"PKR {t.price * t.quantity:.2f}",
+                t.type.title()
+            ])
         output = BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            
-            # 1. Dashboard Summary Sheet
-            summary_data = {
-                'Metric': [
-                    'Total Profit',
-                    'Total Revenue',
-                    'Total Cost',
-                    'Total Devices Purchased',
-                    'Total Devices Sold',
-                    'Available Devices',
-                    'Total IMEIs',
-                    'Total Brands',
-                    'Total Models',
-                    'Total Distributors'
-                ],
-                'Value': [
-                    f"PKR {gross_profit:,.2f}",
-                    f"PKR {total_revenue:,.2f}",
-                    f"PKR {total_cost:,.2f}",
-                    total_purchases,
-                    total_sales,
-                    available_devices,
-                    total_imeis,
-                    total_brands,
-                    total_models,
-                    total_distributors
-                ]
-            }
-            summary_df = pd.DataFrame(summary_data)
-            summary_df.to_excel(writer, sheet_name='Dashboard Summary', index=False)
-            
-            # 2. All Transactions Sheet
-            transactions_data = []
-            for t in transactions:
-                transactions_data.append({
-                    'Date': t.date.strftime('%Y-%m-%d %H:%M'),
-                    'Type': t.type.title(),
-                    'Brand': t.model.brand.name,
-                    'Model': t.model.name,
-                    'Distributor': t.distributor.name,
-                    'Quantity': t.quantity,
-                    'Price per Unit': f"PKR {t.price:.2f}",
-                    'Total Amount': f"PKR {t.price * t.quantity:.2f}",
-                    'Buyer Name': t.buyer_name or 'N/A',
-                    'Payment Status': 'Paid' if t.is_paid else 'Pending' if t.type == 'sale' else 'N/A'
-                })
-            transactions_df = pd.DataFrame(transactions_data)
-            transactions_df.to_excel(writer, sheet_name='All Transactions', index=False)
-            
-            # 3. Device Inventory Sheet
-            inventory_data = []
-            for imei in imeis:
-                inventory_data.append({
-                    'Brand': imei.model.brand.name,
-                    'Model': imei.model.name,
-                    'Distributor': imei.model.distributor.name,
-                    'IMEI': imei.imei_number,
-                    'Status': imei.status.title(),
-                    'Price': f"PKR {imei.price:.2f}" if imei.price else 'N/A',
-                    'Buyer Name': imei.buyer_name or 'N/A',
-                    'Sold On': imei.sold_on.strftime('%Y-%m-%d %H:%M') if imei.sold_on else 'N/A'
-                })
-            inventory_df = pd.DataFrame(inventory_data)
-            inventory_df.to_excel(writer, sheet_name='Device Inventory', index=False)
-            
-            # 4. Brands and Models Sheet
-            brands_models_data = []
-            for brand in brands:
-                for model in brand.models:
-                    brands_models_data.append({
-                        'Brand': brand.name,
-                        'Model': model.name,
-                        'Distributor': model.distributor.name,
-                        'Specifications': model.specs or 'N/A',
-                        'Created Date': model.created_at.strftime('%Y-%m-%d')
-                    })
-            brands_models_df = pd.DataFrame(brands_models_data)
-            brands_models_df.to_excel(writer, sheet_name='Brands & Models', index=False)
-            
-            # 5. Profit Analysis Sheet
-            profit_data = []
-            for t in transactions:
-                if t.type == 'sale':
-                    # Calculate profit for sales
-                    purchase_price = 0
-                    # Find the original purchase price for this model
-                    purchase_transaction = InventoryTransaction.query.filter_by(
-                        model_id=t.model_id, 
-                        type='purchase'
-                    ).first()
-                    if purchase_transaction:
-                        purchase_price = purchase_transaction.price
-                    
-                    profit = (t.price - purchase_price) * t.quantity
-                    profit_data.append({
-                        'Sale Date': t.date.strftime('%Y-%m-%d'),
-                        'Model': t.model.name,
-                        'Quantity': t.quantity,
-                        'Selling Price': f"PKR {t.price:.2f}",
-                        'Purchase Price': f"PKR {purchase_price:.2f}",
-                        'Total Revenue': f"PKR {t.price * t.quantity:.2f}",
-                        'Total Cost': f"PKR {purchase_price * t.quantity:.2f}",
-                        'Profit/Loss': f"PKR {profit:.2f}",
-                        'Profit Margin %': f"{((t.price - purchase_price) / purchase_price * 100):.1f}%" if purchase_price > 0 else 'N/A'
-                    })
-            profit_df = pd.DataFrame(profit_data)
-            profit_df.to_excel(writer, sheet_name='Profit Analysis', index=False)
-            
-            # 6. Recent Activity Sheet
-            activity_data = []
-            for t in recent_transactions:
-                activity_data.append({
-                    'Date': t.date.strftime('%Y-%m-%d %I:%M %p'),
-                    'Activity': f"{t.type.title()} - {t.model.name}",
-                    'Amount': f"PKR {t.price * t.quantity:.2f}",
-                    'Type': t.type.title()
-                })
-            activity_df = pd.DataFrame(activity_data)
-            activity_df.to_excel(writer, sheet_name='Recent Activity', index=False)
-        
+        wb.save(output)
         output.seek(0)
-        
-        # Generate filename with current date
         filename = f"inventory_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-        
         return send_file(
             output,
             as_attachment=True,
             download_name=filename,
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
-        
     except Exception as e:
         flash(f'Error generating report: {str(e)}', 'error')
         return redirect(url_for('dashboard'))
