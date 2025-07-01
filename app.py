@@ -1196,6 +1196,17 @@ def add_shop_sale():
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/delete_transaction/<int:transaction_id>', methods=['DELETE'])
+@login_required
+def delete_transaction(transaction_id):
+    transaction = InventoryTransaction.query.get_or_404(transaction_id)
+    # Optionally, delete related IMEIs if you want to fully clean up
+    for imei in IMEI.query.filter_by(transaction_id=transaction.id).all():
+        db.session.delete(imei)
+    db.session.delete(transaction)
+    db.session.commit()
+    return '', 204
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
