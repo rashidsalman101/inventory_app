@@ -22,7 +22,9 @@
     <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
         <div class="profile">
-            <img src="{{ url_for('static', filename='uploads/' + (current_user.avatar or 'default-avatar.png')) }}" alt="Avatar">
+            <div class="profile-icon">
+                <i class="fas fa-mobile-alt fa-2x text-primary"></i>
+            </div>
             <h5>{{ current_user.name }}</h5>
             <p>{{ current_user.email }}</p>
         </div>

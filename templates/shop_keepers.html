@@ -36,15 +36,17 @@
                                     <td>{{ shop_keeper.address or 'N/A' }}</td>
                                     <td>{{ shop_keeper.created_at.strftime('%Y-%m-%d') }}</td>
                                     <td>
-                                        <button class="btn btn-sm btn-outline-primary" 
-                                                data-bs-toggle="modal" 
-                                                data-bs-target="#editShopKeeperModal{{ shop_keeper.id }}">
-                                            <i class="fas fa-edit"></i>
-                                        </button>
-                                        <button class="btn btn-sm btn-outline-danger" 
-                                                onclick="deleteShopKeeper({{ shop_keeper.id }})">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
+                                        <div class="d-flex gap-1">
+                                            <button class="btn btn-sm btn-outline-primary" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#editShopKeeperModal{{ shop_keeper.id }}">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger" 
+                                                    onclick="deleteShopKeeper({{ shop_keeper.id }})">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% endfor %}

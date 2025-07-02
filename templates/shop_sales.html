@@ -131,10 +131,10 @@
                             <input type="number" class="form-control" id="price" step="0.01" min="0" required>
                         </div>
 
-                        <!-- Quantity (Auto-calculated) -->
+                        <!-- Quantity (Editable) -->
                         <div class="mb-3">
-                            <label class="form-label">Quantity</label>
-                            <input type="number" class="form-control" id="quantity" value="0" min="0" readonly>
+                            <label for="quantity" class="form-label">Quantity</label>
+                            <input type="number" class="form-control" id="quantity" value="0" min="0">
                         </div>
 
                         <!-- Total Price (Auto-calculated) -->
@@ -281,7 +281,6 @@ function resetForm() {
     updateSelectedImeisDisplay();
     $('#deviceSearch').val('');
     $('#scanImeiInput').val('');
-    $('#quantity').val(0);
     $('#totalPrice').val('PKR 0.00');
     $('#price').val('');
     $('#brandSelect').val('');
@@ -327,6 +326,7 @@ $('#modelSelect').on('change', function() {
 });
 
 $('#price').on('input', updateTotalPrice);
+$('#quantity').on('input', updateTotalPrice);
 
 function updateFilterModelOptions() {
     const brandId = $('#filterBrand').val();
@@ -401,14 +401,13 @@ function toggleDeviceSelection(imeiNumber) {
     }
     
     updateSelectedImeisDisplay();
-    $('#quantity').val(selectedImeis.length);
     updateTotalPrice();
     displayAvailableDevices();
 }
 
 function updateTotalPrice() {
     const price = parseFloat($('#price').val()) || 0;
-    const quantity = selectedImeis.length;
+    const quantity = parseInt($('#quantity').val()) || 0;
     const total = price * quantity;
     $('#totalPrice').val('PKR ' + total.toFixed(2));
 }
@@ -444,7 +443,6 @@ function updateSelectedImeisDisplay() {
 function removeImei(imeiNumber) {
     selectedImeis = selectedImeis.filter(imei => imei !== imeiNumber);
     updateSelectedImeisDisplay();
-    $('#quantity').val(selectedImeis.length);
     updateTotalPrice();
     displayAvailableDevices();
 }
@@ -472,7 +470,6 @@ function scanImei() {
             if (found && !selectedImeis.includes(imei)) {
                 selectedImeis.push(imei);
                 updateSelectedImeisDisplay();
-                $('#quantity').val(selectedImeis.length);
                 updateTotalPrice();
                 displayAvailableDevices();
                 input.value = '';
@@ -496,7 +493,7 @@ function processShopSale() {
     const modelId = $('#modelSelect').val();
     const price = parseFloat($('#price').val());
     const isPaid = $('#isPaid').is(':checked');
-    const quantity = selectedImeis.length;
+    const quantity = parseInt($('#quantity').val()) || 0;
     
     if (!shopKeeperId) {
         showToast('Please select a shop keeper', 'error');
@@ -508,8 +505,8 @@ function processShopSale() {
         return;
     }
     
-    if (quantity === 0) {
-        showToast('Please select at least one device', 'error');
+    if (quantity <= 0) {
+        showToast('Please enter a valid quantity', 'error');
         return;
     }
     

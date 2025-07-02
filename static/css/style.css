@@ -69,6 +69,17 @@ body {
     text-align: center;
     margin-bottom: 32px;
 }
+.sidebar .profile-icon {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: var(--primary-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 12px auto;
+    border: 2px solid var(--primary-color);
+}
 .sidebar .profile img {
     width: 72px;
     height: 72px;
@@ -146,14 +157,14 @@ body {
 /* Dashboard summary cards */
 .summary-cards {
     display: flex;
-    gap: 24px;
+    gap: 20px;
     margin-bottom: 32px;
 }
 .summary-card {
     flex: 1;
     background: #fff;
     border-radius: 16px;
-    padding: 28px 24px;
+    padding: 20px 18px;
     box-shadow: 0 2px 8px rgba(60, 169, 123, 0.04);
     display: flex;
     flex-direction: column;
@@ -161,14 +172,14 @@ body {
     border: 1px solid var(--card-border);
 }
 .summary-card h2 {
-    font-size: 2.1rem;
+    font-size: 1.8rem;
     font-weight: 700;
     margin-bottom: 6px;
     color: var(--primary-color);
 }
 .summary-card p {
     color: var(--muted);
-    font-size: 1.05rem;
+    font-size: 0.95rem;
     margin-bottom: 0;
 }
 
@@ -451,101 +462,119 @@ body {
 }
 
 @media (max-width: 768px) {
+    .sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        width: 280px;
+    }
+    .sidebar.open {
+        transform: translateX(0);
+    }
+    .sidebar-overlay {
+        display: none;
+    }
+    .sidebar-overlay.open {
+        display: block;
+    }
     .main-content {
-        padding: 60px 12px 12px 12px;
+        margin-left: 0;
+        padding: 20px 16px;
+        width: 100%;
     }
-    
+    .summary-cards {
+        flex-direction: column;
+        gap: 16px;
+    }
     .summary-card {
-        padding: 16px 12px;
+        padding: 16px;
     }
-    
     .summary-card h2 {
         font-size: 1.6rem;
     }
-    
-    .summary-card p {
-        font-size: 0.95rem;
+    .card, .card-header, .card-body {
+        padding: 12px;
     }
-    
-    .card {
-        margin-bottom: 16px;
-        padding: 12px 8px;
-    }
-    
-    .card-header {
-        padding: 12px 8px;
-        font-size: 1rem;
-    }
-    
-    .card-body {
-        padding: 12px 8px;
-    }
-    
-    /* Improve dashboard layout */
-    .d-flex.justify-content-between {
-        flex-direction: column;
-        gap: 12px;
-        align-items: flex-start !important;
-    }
-    
-    .d-flex.justify-content-between h2 {
-        font-size: 1.5rem;
-        margin-bottom: 0;
-    }
-    
-    /* Stack chart and activity sections */
-    .row .col-lg-7,
-    .row .col-lg-5 {
-        margin-bottom: 20px;
-    }
-    
-    /* Improve table scrolling */
     .table-responsive {
-        border-radius: 8px;
-        border: 1px solid var(--card-border);
+        font-size: 0.9rem;
     }
-    
-    /* Better form spacing */
-    .form-group, .mb-3, .mb-4 {
-        margin-bottom: 1rem !important;
+    .table {
+        font-size: 0.85rem;
     }
-    
-    /* Improve button sizing */
-    .btn {
-        padding: 10px 20px;
-        font-size: 0.95rem;
-        width: 100%;
-        margin-bottom: 8px;
+    .table th, .table td {
+        padding: 8px 6px;
+        vertical-align: middle;
     }
-    
     .btn + .btn {
-        margin-top: 8px;
+        margin-left: 4px;
     }
-    
-    /* Sidebar improvements */
-    .sidebar {
-        width: 85vw;
-        max-width: 300px;
+    .form-control, .form-select {
+        font-size: 16px;
+        padding: 10px 12px;
     }
-    
-    .sidebar .profile img {
+    .chart-container {
+        height: 250px;
+    }
+    .recent-activity .activity-row {
+        padding: 12px 0;
+    }
+    .recent-activity .activity-icon {
+        width: 36px;
+        height: 36px;
+        font-size: 0.9rem;
+    }
+    .hamburger {
+        display: block;
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        z-index: 1000;
+        background: var(--primary-color);
+        border: none;
+        border-radius: 8px;
+        width: 44px;
+        height: 44px;
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    .hamburger span,
+    .hamburger span:before,
+    .hamburger span:after {
+        display: block;
+        background: white;
+        height: 3px;
+        width: 24px;
+        position: absolute;
+        left: 10px;
+        transition: all 0.3s ease;
+    }
+    .hamburger span {
+        top: 20px;
+    }
+    .hamburger span:before {
+        content: '';
+        top: -8px;
+    }
+    .hamburger span:after {
+        content: '';
+        top: 8px;
+    }
+    .sidebar .profile-icon {
         width: 60px;
         height: 60px;
     }
-    
+    .sidebar .profile-icon i {
+        font-size: 1.5rem !important;
+    }
     .sidebar .profile h5 {
         font-size: 1.1rem;
     }
-    
     .sidebar .profile p {
         font-size: 0.9rem;
     }
-    
     .sidebar .nav-link {
-        padding: 10px 16px;
+        padding: 10px 20px;
         font-size: 0.95rem;
     }
-    
     .sidebar .nav-link i {
         font-size: 1.1rem;
     }

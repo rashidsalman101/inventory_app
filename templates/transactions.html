@@ -141,12 +141,14 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    <button class="btn btn-sm btn-outline-primary me-1" onclick="viewIMEIs({{ transaction.id }})">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteTransaction({{ transaction.id }}, '{{ transaction.type }}')">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
+                                    <div class="d-flex gap-1">
+                                        <button class="btn btn-sm btn-outline-primary" onclick="viewIMEIs({{ transaction.id }})">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" onclick="deleteTransaction({{ transaction.id }}, '{{ transaction.type }}')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -184,12 +186,14 @@
                                 <td>PKR {{ "%.2f"|format(transaction.price) }}</td>
                                 <td>PKR {{ "%.2f"|format(transaction.price * transaction.quantity) }}</td>
                                 <td>
-                                    <button class="btn btn-sm btn-outline-primary" onclick="viewIMEIs({{ transaction.id }})">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteTransaction({{ transaction.id }}, '{{ transaction.type }}')">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
+                                    <div class="d-flex gap-1">
+                                        <button class="btn btn-sm btn-outline-primary" onclick="viewIMEIs({{ transaction.id }})">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" onclick="deleteTransaction({{ transaction.id }}, '{{ transaction.type }}')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -235,17 +239,19 @@
                                     </span>
                                 </td>
                                 <td>
-                                    <button class="btn btn-sm btn-outline-primary me-1" onclick="viewIMEIs({{ transaction.id }})">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                    {% if not transaction.is_paid %}
-                                    <button class="btn btn-sm btn-success me-1" onclick="markAsPaid({{ transaction.id }})">
-                                        <i class="fas fa-check"></i>
-                                    </button>
-                                    {% endif %}
-                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteTransaction({{ transaction.id }}, '{{ transaction.type }}')">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
+                                    <div class="d-flex gap-1">
+                                        <button class="btn btn-sm btn-outline-primary" onclick="viewIMEIs({{ transaction.id }})">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        {% if not transaction.is_paid %}
+                                        <button class="btn btn-sm btn-success me-1" onclick="markAsPaid({{ transaction.id }})">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                        {% endif %}
+                                        <button class="btn btn-sm btn-outline-danger" onclick="deleteTransaction({{ transaction.id }}, '{{ transaction.type }}')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                             {% endfor %}
