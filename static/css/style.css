@@ -254,24 +254,62 @@ body {
     font-size: 1.3rem;
 }
 
-/* Responsive */
-@media (max-width: 900px) {
-    .sidebar {
-        width: 100%;
-        min-height: auto;
-        position: static;
-        border-right: none;
-        flex-direction: row;
-        padding: 0;
-    }
-    .main-content {
-        margin-left: 0;
-        padding: 24px 8px;
-    }
-    .summary-cards {
-        flex-direction: column;
-        gap: 16px;
-    }
+/* Responsive Design - Mobile First Approach */
+
+/* Hamburger menu for mobile */
+.hamburger {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    position: fixed !important;
+}
+
+.hamburger span,
+.hamburger span:before,
+.hamburger span:after {
+    display: block;
+    background: var(--primary-color);
+    height: 4px;
+    width: 24px;
+    border-radius: 2px;
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    margin: 0 auto;
+    transition: 0.3s;
+}
+
+.hamburger span {
+    position: absolute;
+    top: 20px;
+    left: 10px;
+    right: 10px;
+    margin: 0 auto;
+}
+
+.hamburger span:before,
+.hamburger span:after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+}
+
+.hamburger span:before {
+    top: -8px;
+}
+
+.hamburger span:after {
+    top: 8px;
+}
+
+/* Sidebar overlay for mobile */
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.25);
+    z-index: 99;
 }
 
 /* Loading spinner */
@@ -298,105 +336,675 @@ body {
     background: var(--primary-dark);
 }
 
-/* Hamburger menu for mobile */
-.hamburger {
-    display: none;
-    position: fixed;
-    top: 18px;
-    left: 18px;
-    z-index: 200;
-    width: 38px;
-    height: 38px;
-    background: #fff;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(60, 169, 123, 0.08);
-    border: 1px solid var(--card-border);
-    justify-content: center;
-    align-items: center;
-    cursor: pointer;
-}
-.hamburger span, .hamburger span:before, .hamburger span:after {
-    display: block;
-    background: var(--primary-color);
-    height: 4px;
-    width: 24px;
-    border-radius: 2px;
-    position: absolute;
-    left: 7px;
-    transition: 0.3s;
-}
-.hamburger span {
-    position: relative;
-    top: 17px;
-}
-.hamburger span:before {
-    content: '';
-    top: -8px;
-}
-.hamburger span:after {
-    content: '';
-    top: 8px;
-}
-
-/* Sidebar overlay for mobile */
-.sidebar-overlay {
-    display: none;
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.25);
-    z-index: 99;
-}
-
-@media (max-width: 900px) {
-    .hamburger {
-        display: flex;
-    }
+/* Tablet and Mobile Responsive Design */
+@media (max-width: 1024px) {
     .sidebar {
-        width: 240px;
-        min-height: 100vh;
-        position: fixed;
-        left: -260px;
-        top: 0;
-        bottom: 0;
-        z-index: 200;
-        transition: left 0.3s;
-        box-shadow: 2px 0 8px rgba(60, 169, 123, 0.08);
+        left: -260px !important;
+        position: fixed !important;
+        width: 240px !important;
+        z-index: 2000 !important;
+        transition: left 0.3s cubic-bezier(0.4,0,0.2,1);
     }
     .sidebar.open {
-        left: 0;
+        left: 0 !important;
+    }
+    .sidebar-overlay {
+        z-index: 1999 !important;
     }
     .sidebar-overlay.open {
-        display: block;
+        display: block !important;
     }
     .main-content {
-        margin-left: 0;
-        padding: 24px 8px;
+        margin-left: 0 !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
     }
+    
     .summary-cards {
         flex-direction: column;
         gap: 16px;
     }
-    .card, .card-header, .card-body, .table {
+    
+    .summary-card {
+        padding: 20px 16px;
+    }
+    
+    .summary-card h2 {
+        font-size: 1.8rem;
+    }
+    
+    .card, .card-header, .card-body {
         border-radius: 12px !important;
     }
+    
     .table-responsive {
         overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    /* Improve table readability on mobile */
+    .table {
+        font-size: 0.9rem;
+    }
+    
+    .table th, .table td {
+        padding: 8px 6px;
+        white-space: nowrap;
+    }
+    
+    /* Stack buttons on mobile */
+    .btn + .btn {
+        margin-left: 0;
+        margin-top: 8px;
+    }
+    
+    /* Improve form layout */
+    .form-control, .form-select {
+        font-size: 1rem;
+        padding: 10px 12px;
+    }
+    
+    /* Chart responsiveness */
+    .chart-container {
+        height: 300px;
+        overflow: hidden;
+    }
+    
+    /* Recent activity improvements */
+    .recent-activity .activity-row {
+        padding: 12px 8px;
+    }
+    
+    .recent-activity .activity-icon {
+        width: 32px;
+        height: 32px;
+        font-size: 0.8rem;
+    }
+    
+    /* --- CRITICAL: Hamburger menu always visible on mobile --- */
+    .hamburger {
+        width: 44px !important;
+        height: 44px !important;
+        padding: 0 !important;
+    }
+    .hamburger span,
+    .hamburger span:before,
+    .hamburger span:after {
+        width: 24px !important;
+        left: 10px !important;
+        right: 10px !important;
+        margin: 0 auto !important;
+    }
+    .hamburger span {
+        top: 20px !important;
+        left: 10px !important;
+        right: 10px !important;
+    }
+    .hamburger span:before {
+        top: -8px !important;
+    }
+    .hamburger span:after {
+        top: 8px !important;
     }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 768px) {
     .main-content {
-        padding: 12px 2px;
+        padding: 60px 12px 12px 12px;
     }
+    
     .summary-card {
-        padding: 16px 8px;
+        padding: 16px 12px;
     }
+    
+    .summary-card h2 {
+        font-size: 1.6rem;
+    }
+    
+    .summary-card p {
+        font-size: 0.95rem;
+    }
+    
     .card {
-        margin-bottom: 14px;
+        margin-bottom: 16px;
+        padding: 12px 8px;
     }
+    
+    .card-header {
+        padding: 12px 8px;
+        font-size: 1rem;
+    }
+    
+    .card-body {
+        padding: 12px 8px;
+    }
+    
+    /* Improve dashboard layout */
+    .d-flex.justify-content-between {
+        flex-direction: column;
+        gap: 12px;
+        align-items: flex-start !important;
+    }
+    
+    .d-flex.justify-content-between h2 {
+        font-size: 1.5rem;
+        margin-bottom: 0;
+    }
+    
+    /* Stack chart and activity sections */
+    .row .col-lg-7,
+    .row .col-lg-5 {
+        margin-bottom: 20px;
+    }
+    
+    /* Improve table scrolling */
+    .table-responsive {
+        border-radius: 8px;
+        border: 1px solid var(--card-border);
+    }
+    
+    /* Better form spacing */
+    .form-group, .mb-3, .mb-4 {
+        margin-bottom: 1rem !important;
+    }
+    
+    /* Improve button sizing */
+    .btn {
+        padding: 10px 20px;
+        font-size: 0.95rem;
+        width: 100%;
+        margin-bottom: 8px;
+    }
+    
+    .btn + .btn {
+        margin-top: 8px;
+    }
+    
+    /* Sidebar improvements */
+    .sidebar {
+        width: 85vw;
+        max-width: 300px;
+    }
+    
+    .sidebar .profile img {
+        width: 60px;
+        height: 60px;
+    }
+    
+    .sidebar .profile h5 {
+        font-size: 1.1rem;
+    }
+    
+    .sidebar .profile p {
+        font-size: 0.9rem;
+    }
+    
+    .sidebar .nav-link {
+        padding: 10px 16px;
+        font-size: 0.95rem;
+    }
+    
+    .sidebar .nav-link i {
+        font-size: 1.1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .main-content {
+        padding: 60px 8px 8px 8px;
+    }
+    
+    .summary-card {
+        padding: 12px 8px;
+    }
+    
+    .summary-card h2 {
+        font-size: 1.4rem;
+    }
+    
+    .card {
+        padding: 8px 6px;
+        margin-bottom: 12px;
+    }
+    
+    .card-header {
+        padding: 8px 6px;
+        font-size: 0.95rem;
+    }
+    
+    .card-body {
+        padding: 8px 6px;
+    }
+    
+    /* Improve table for very small screens */
+    .table {
+        font-size: 0.8rem;
+    }
+    
+    .table th, .table td {
+        padding: 6px 4px;
+    }
+    
+    /* Better form controls */
+    .form-control, .form-select {
+        font-size: 0.95rem;
+        padding: 8px 10px;
+    }
+    
+    /* Improve chart container */
+    .chart-container {
+        height: 250px;
+    }
+    
+    /* Sidebar for very small screens */
     .sidebar {
         width: 90vw;
-        min-width: 0;
+    }
+    
+    .sidebar .nav-link {
+        padding: 8px 12px;
+        font-size: 0.9rem;
+    }
+    
+    .sidebar .nav-link i {
+        font-size: 1rem;
+    }
+    
+    /* Improve hamburger positioning */
+    .hamburger {
+        top: 12px;
+        left: 12px;
+        width: 36px;
+        height: 36px;
+    }
+    
+    .hamburger span, .hamburger span:before, .hamburger span:after {
+        width: 20px;
+        left: 8px;
+    }
+    
+    .hamburger span {
+        top: 16px;
+    }
+    
+    .hamburger span:before {
+        top: -6px;
+    }
+    
+    .hamburger span:after {
+        top: 6px;
+    }
+}
+
+/* Authentication pages responsive */
+@media (max-width: 600px) {
+    .auth-container {
+        padding: 16px;
+    }
+    
+    .auth-card {
+        padding: 32px 24px;
+        margin: 0 8px;
+    }
+    
+    .auth-logo h1 {
+        font-size: 1.8rem;
+    }
+    
+    .auth-card .form-control {
+        font-size: 0.95rem;
+        padding: 10px 12px;
+    }
+    
+    .auth-card .btn-primary {
+        padding: 12px 24px;
+        font-size: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .auth-container {
+        padding: 12px;
+    }
+    
+    .auth-card {
+        padding: 24px 16px;
+    }
+    
+    .auth-logo h1 {
+        font-size: 1.6rem;
+    }
+    
+    .auth-logo p {
+        font-size: 1rem;
+    }
+}
+
+/* Landscape orientation fixes */
+@media (max-width: 768px) and (orientation: landscape) {
+    .main-content {
+        padding: 50px 12px 12px 12px;
+    }
+    
+    .summary-cards {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    
+    .summary-card {
+        flex: 1;
+        min-width: 200px;
+    }
+    
+    .chart-container {
+        height: 200px;
+    }
+}
+
+/* High DPI displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    .hamburger {
+        box-shadow: 0 1px 4px rgba(60, 169, 123, 0.12);
+    }
+    
+    .sidebar {
+        box-shadow: 1px 0 4px rgba(60, 169, 123, 0.12);
+    }
+}
+
+/* Touch device improvements */
+@media (hover: none) and (pointer: coarse) {
+    .btn, .nav-link, .form-control, .form-select {
+        min-height: 44px;
+    }
+    
+    .sidebar .nav-link {
+        min-height: 48px;
+    }
+    
+    .hamburger {
+        min-width: 44px;
+        min-height: 44px;
+    }
+}
+
+/* Enhanced table responsiveness */
+@media (max-width: 768px) {
+    /* Tab navigation improvements */
+    .nav-tabs {
+        flex-wrap: wrap;
+        border-bottom: 1px solid var(--card-border);
+    }
+    
+    .nav-tabs .nav-link {
+        font-size: 0.85rem;
+        padding: 8px 12px;
+        white-space: nowrap;
+    }
+    
+    /* Table improvements for mobile */
+    .table-responsive {
+        border: 1px solid var(--card-border);
+        border-radius: 8px;
+        margin-bottom: 16px;
+    }
+    
+    .table {
+        margin-bottom: 0;
+    }
+    
+    .table th {
+        font-size: 0.8rem;
+        padding: 8px 4px;
+        white-space: nowrap;
+    }
+    
+    .table td {
+        font-size: 0.8rem;
+        padding: 6px 4px;
+        vertical-align: middle;
+    }
+    
+    /* Compact badges */
+    .badge {
+        font-size: 0.7rem;
+        padding: 4px 6px;
+    }
+    
+    /* Compact buttons in tables */
+    .table .btn-sm {
+        padding: 4px 6px;
+        font-size: 0.75rem;
+    }
+    
+    .table .btn-sm i {
+        font-size: 0.7rem;
+    }
+    
+    /* Improve action buttons spacing */
+    .table td:last-child {
+        white-space: nowrap;
+    }
+    
+    .table td:last-child .btn {
+        margin: 0 2px;
+    }
+    
+    /* Stack header elements on mobile */
+    .d-flex.justify-content-between {
+        flex-direction: column;
+        gap: 12px;
+        align-items: flex-start !important;
+    }
+    
+    .d-flex.justify-content-between h1 {
+        font-size: 1.5rem;
+        margin-bottom: 0;
+    }
+    
+    .d-flex.justify-content-between .btn {
+        width: 100%;
+        margin-bottom: 8px;
+    }
+    
+    .d-flex.justify-content-between .btn:last-child {
+        margin-bottom: 0;
+    }
+}
+
+@media (max-width: 480px) {
+    /* Even more compact tables */
+    .table th {
+        font-size: 0.75rem;
+        padding: 6px 2px;
+    }
+    
+    .table td {
+        font-size: 0.75rem;
+        padding: 4px 2px;
+    }
+    
+    /* Hide less important columns on very small screens */
+    .table th:nth-child(4),
+    .table td:nth-child(4),
+    .table th:nth-child(5),
+    .table td:nth-child(5) {
+        display: none;
+    }
+    
+    /* Compact tab navigation */
+    .nav-tabs .nav-link {
+        font-size: 0.8rem;
+        padding: 6px 8px;
+    }
+    
+    .nav-tabs .nav-link i {
+        display: none;
+    }
+    
+    /* Improve modal responsiveness */
+    .modal-dialog {
+        margin: 10px;
+        max-width: calc(100% - 20px);
+    }
+    
+    .modal-body {
+        padding: 16px 12px;
+    }
+    
+    .modal-header {
+        padding: 12px 16px;
+    }
+    
+    .modal-footer {
+        padding: 12px 16px;
+    }
+}
+
+/* Print styles for better table printing */
+@media print {
+    .sidebar,
+    .hamburger,
+    .sidebar-overlay,
+    .btn,
+    .nav-tabs {
+        display: none !important;
+    }
+    
+    .main-content {
+        margin-left: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .table-responsive {
+        overflow: visible !important;
+        border: none !important;
+    }
+    
+    .table {
+        font-size: 12px !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+}
+
+/* Form responsiveness improvements */
+@media (max-width: 768px) {
+    /* Stack form columns on mobile */
+    .row .col-md-4,
+    .row .col-md-6,
+    .row .col-lg-4,
+    .row .col-lg-6 {
+        margin-bottom: 16px;
+    }
+    
+    /* Improve form spacing */
+    .form-label {
+        font-size: 0.95rem;
+        margin-bottom: 6px;
+    }
+    
+    .form-control,
+    .form-select {
+        font-size: 1rem;
+        padding: 12px 14px;
+        border-radius: 8px;
+    }
+    
+    /* Better button layout on mobile */
+    .d-flex.justify-content-end {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .d-flex.justify-content-end .btn {
+        width: 100%;
+        margin: 0;
+    }
+    
+    /* Improve card layout */
+    .card-body {
+        padding: 16px 12px;
+    }
+    
+    /* Better IMEI input layout */
+    .d-flex .form-control {
+        flex: 1;
+    }
+    
+    .d-flex .btn {
+        flex-shrink: 0;
+        margin-left: 8px;
+    }
+    
+    /* Improve bulk IMEI list */
+    #bulkImeiList {
+        min-height: 80px;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+    
+    /* Better modal form layout */
+    .modal-body .row {
+        margin: 0;
+    }
+    
+    .modal-body .col-md-4,
+    .modal-body .col-md-6 {
+        padding: 0 0 16px 0;
+    }
+}
+
+@media (max-width: 480px) {
+    /* Even more compact forms */
+    .form-control,
+    .form-select {
+        font-size: 0.95rem;
+        padding: 10px 12px;
+    }
+    
+    .form-label {
+        font-size: 0.9rem;
+    }
+    
+    /* Stack all form elements */
+    .row .col-md-4,
+    .row .col-md-6,
+    .row .col-lg-4,
+    .row .col-lg-6 {
+        width: 100%;
+        margin-bottom: 12px;
+    }
+    
+    /* Compact card spacing */
+    .card-body {
+        padding: 12px 8px;
+    }
+    
+    .card-header {
+        padding: 12px 8px;
+    }
+    
+    /* Better button sizing */
+    .btn {
+        padding: 10px 16px;
+        font-size: 0.9rem;
+    }
+    
+    /* Improve IMEI scanner button */
+    .d-flex .btn {
+        padding: 10px 12px;
+        font-size: 0.85rem;
+    }
+    
+    .d-flex .btn i {
+        font-size: 0.8rem;
     }
 }
 
@@ -405,19 +1013,23 @@ body {
     margin-bottom: 0.5rem;
     font-weight: 500;
 }
+
 .form-control, .form-select {
     padding: 12px 16px;
     border-radius: 8px;
     font-size: 1.05rem;
     margin-bottom: 18px;
 }
+
 .form-control:focus, .form-select:focus {
     box-shadow: 0 0 0 2px var(--primary-color, #3ca97b33);
     border-color: var(--primary-color);
 }
+
 .form-group, .mb-3, .mb-4 {
     margin-bottom: 1.25rem !important;
 }
+
 .btn + .btn {
     margin-left: 10px;
 }
@@ -517,18 +1129,4 @@ body {
 .auth-card a:hover {
     color: var(--primary-dark);
     text-decoration: underline;
-}
-
-@media (max-width: 600px) {
-    .auth-container {
-        padding: 16px;
-    }
-    
-    .auth-card {
-        padding: 32px 24px;
-    }
-    
-    .auth-logo h1 {
-        font-size: 1.8rem;
-    }
 } 

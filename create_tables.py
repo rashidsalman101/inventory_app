@@ -8,9 +8,14 @@ from app import app, db
 from app import User, Brand, Distributor, ShopKeeper, Model, InventoryTransaction, IMEI
 from werkzeug.security import generate_password_hash
 from datetime import datetime
+import os
 
 def create_tables():
     """Create all database tables"""
+    db_path = app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', '')
+    if os.path.exists(db_path):
+        print(f"Database already exists at {db_path}. Skipping table creation and seeding.")
+        return True
     print("Creating database tables...")
     
     with app.app_context():
