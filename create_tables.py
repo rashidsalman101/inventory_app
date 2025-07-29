@@ -5,7 +5,7 @@ Run this script to create all database tables and add initial data.
 """
 
 from app import app, db
-from app import User, Brand, Distributor, ShopKeeper, Model, InventoryTransaction, IMEI
+from app import User, Brand, Model, Purchase, Sale, Shop, Payment, Incentive
 from werkzeug.security import generate_password_hash
 from datetime import datetime
 import os
@@ -57,59 +57,89 @@ def create_tables():
                 db.session.add(brand)
                 print(f"✓ Added sample brand: {brand_name}")
         
-        # Add some sample distributors if they don't exist
-        sample_distributors = [
-            {'name': 'Tech Distributors Ltd', 'contact_info': 'Phone: +1234567890\nEmail: info@techdist.com'},
-            {'name': 'Mobile Solutions Inc', 'contact_info': 'Phone: +0987654321\nEmail: sales@mobilesolutions.com'},
-            {'name': 'Digital Devices Co', 'contact_info': 'Phone: +1122334455\nEmail: contact@digitaldevices.com'},
-            {'name': 'Smart Phone Suppliers', 'contact_info': 'Phone: +1555666777\nEmail: info@smartphonesuppliers.com'}
+        # Add some sample models for each brand
+        sample_models = [
+            ('Samsung', 'Galaxy S21'),
+            ('Samsung', 'Galaxy A52'),
+            ('Samsung', 'Galaxy Note 20'),
+            ('Apple', 'iPhone 13'),
+            ('Apple', 'iPhone 12'),
+            ('Apple', 'iPhone 11'),
+            ('Xiaomi', 'Mi 11'),
+            ('Xiaomi', 'Redmi Note 10'),
+            ('OPPO', 'Find X3'),
+            ('OPPO', 'Reno 6'),
+            ('Vivo', 'X60'),
+            ('Vivo', 'Y53s'),
+            ('OnePlus', '9 Pro'),
+            ('OnePlus', 'Nord 2'),
+            ('Huawei', 'P40 Pro'),
+            ('Huawei', 'Mate 40'),
+            ('Nokia', '8.3'),
+            ('Motorola', 'Edge'),
+            ('Realme', 'GT'),
+            ('Realme', '8 Pro')
         ]
         
-        for dist_data in sample_distributors:
-            existing_dist = Distributor.query.filter_by(name=dist_data['name']).first()
-            if not existing_dist:
-                distributor = Distributor(
-                    name=dist_data['name'],
-                    contact_info=dist_data['contact_info'],
-                    created_at=datetime.utcnow()
-                )
-                db.session.add(distributor)
-                print(f"✓ Added sample distributor: {dist_data['name']}")
+        for brand_name, model_name in sample_models:
+            brand = Brand.query.filter_by(name=brand_name).first()
+            if brand:
+                existing_model = Model.query.filter_by(brand_id=brand.id, name=model_name).first()
+                if not existing_model:
+                    model = Model(
+                        brand_id=brand.id,
+                        name=model_name,
+                        created_at=datetime.utcnow()
+                    )
+                    db.session.add(model)
+                    print(f"✓ Added sample model: {brand_name} {model_name}")
         
-        # Add some sample shop keepers if they don't exist
-        sample_shop_keepers = [
+        # Add some sample shops if they don't exist
+        sample_shops = [
             {
-                'name': 'John Smith',
-                'shop_name': 'Smith Mobile Store',
-                'contact_info': 'Phone: +1112223333\nEmail: john@smithmobile.com',
-                'address': '123 Main Street, Downtown, City'
+                'name': 'Mobile World',
+                'owner_name': 'Ahmed Khan',
+                'contact_info': 'Phone: +92-300-1234567\nEmail: ahmed@mobileworld.com',
+                'address': '123 Main Street, Karachi, Pakistan'
             },
             {
-                'name': 'Sarah Johnson',
-                'shop_name': 'Johnson Electronics',
-                'contact_info': 'Phone: +4445556666\nEmail: sarah@johnsonelectronics.com',
-                'address': '456 Oak Avenue, Midtown, City'
+                'name': 'Phone Store',
+                'owner_name': 'Fatima Ali',
+                'contact_info': 'Phone: +92-300-7654321\nEmail: fatima@phonestore.com',
+                'address': '456 Oak Avenue, Lahore, Pakistan'
             },
             {
-                'name': 'Mike Wilson',
-                'shop_name': 'Wilson Tech Shop',
-                'contact_info': 'Phone: +7778889999\nEmail: mike@wilsonshop.com',
-                'address': '789 Pine Road, Uptown, City'
+                'name': 'Tech Shop',
+                'owner_name': 'Usman Hassan',
+                'contact_info': 'Phone: +92-300-9876543\nEmail: usman@techshop.com',
+                'address': '789 Pine Road, Islamabad, Pakistan'
+            },
+            {
+                'name': 'Digital Mobile',
+                'owner_name': 'Ayesha Malik',
+                'contact_info': 'Phone: +92-300-1112223\nEmail: ayesha@digitalmobile.com',
+                'address': '321 Tech Street, Rawalpindi, Pakistan'
+            },
+            {
+                'name': 'Smart Phones',
+                'owner_name': 'Bilal Ahmed',
+                'contact_info': 'Phone: +92-300-4445556\nEmail: bilal@smartphones.com',
+                'address': '654 Innovation Road, Faisalabad, Pakistan'
             }
         ]
         
-        for shop_data in sample_shop_keepers:
-            existing_shop = ShopKeeper.query.filter_by(shop_name=shop_data['shop_name']).first()
+        for shop_data in sample_shops:
+            existing_shop = Shop.query.filter_by(name=shop_data['name']).first()
             if not existing_shop:
-                shop_keeper = ShopKeeper(
+                shop = Shop(
                     name=shop_data['name'],
-                    shop_name=shop_data['shop_name'],
+                    owner_name=shop_data['owner_name'],
                     contact_info=shop_data['contact_info'],
                     address=shop_data['address'],
                     created_at=datetime.utcnow()
                 )
-                db.session.add(shop_keeper)
-                print(f"✓ Added sample shop keeper: {shop_data['shop_name']}")
+                db.session.add(shop)
+                print(f"✓ Added sample shop: {shop_data['name']}")
         
         # Commit all changes
         try:
@@ -119,6 +149,10 @@ def create_tables():
             print("Email: admin@mobileshop.com")
             print("Password: admin123")
             print("\n⚠️  IMPORTANT: Change the default password after first login!")
+            print("\nSample data added:")
+            print("- 10 Brands (Samsung, Apple, Xiaomi, etc.)")
+            print("- 20 Models (Galaxy S21, iPhone 13, etc.)")
+            print("- 5 Shops (Mobile World, Phone Store, etc.)")
             
         except Exception as e:
             db.session.rollback()
