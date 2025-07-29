@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+
+{% block title %}Shop Ledger - Mobile Shop Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 style="font-weight:700;"><i class="fas fa-book me-2"></i>Shop Ledger</h2>
+    <div>
+        <a href="{{ url_for('export_report') }}" class="btn btn-success">
+            <i class="fas fa-file-pdf me-2"></i>Export Report
+        </a>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('shop_ledger') }}" class="row g-3">
+            <div class="col-md-4">
+                <label for="brand" class="form-label">Filter by Brand</label>
+                <select class="form-control" id="brand" name="brand">
+                    <option value="">All Brands</option>
+                    {% for brand in brands %}
+                    <option value="{{ brand.id }}" {% if selected_brand|string == brand.id|string %}selected{% endif %}>
+                        {{ brand.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label for="model" class="form-label">Filter by Model</label>
+                <select class="form-control" id="model" name="model">
+                    <option value="">All Models</option>
+                    {% for model in models %}
+                    <option value="{{ model.id }}" {% if selected_model|string == model.id|string %}selected{% endif %}>
+                        {{ model.brand.name }} {{ model.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">
+                    <i class="fas fa-filter me-2"></i>Filter
+                </button>
+                <a href="{{ url_for('shop_ledger') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times me-2"></i>Clear
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Transactions -->
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-shopping-cart me-2"></i>Purchases</h5>
+            </div>
+            <div class="card-body">
+                {% if purchases %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Model</th>
+                                    <th>Type</th>
+                                    <th>Qty</th>
+                                    <th>Price</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for purchase in purchases %}
+                                <tr>
+                                    <td>{{ purchase.date.strftime('%Y-%m-%d') }}</td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ purchase.model.brand.name }}</span>
+                                        {{ purchase.model.name }}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ 'success' if purchase.inventory_type == 'new' else 'warning' }}">
+                                            {{ purchase.inventory_type.title() }}
+                                        </span>
+                                    </td>
+                                    <td>{{ purchase.quantity }}</td>
+                                    <td class="text-end">PKR {{ "{:,.2f}".format(purchase.purchase_price) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center py-3">No purchases found</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-cash-register me-2"></i>Sales</h5>
+            </div>
+            <div class="card-body">
+                {% if sales %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Model</th>
+                                    <th>IMEI</th>
+                                    <th>Type</th>
+                                    <th>Profit</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for sale in sales %}
+                                <tr>
+                                    <td>{{ sale.date.strftime('%Y-%m-%d') }}</td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ sale.model.brand.name }}</span>
+                                        {{ sale.model.name }}
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">{{ sale.imei_number }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ 'success' if sale.inventory_type == 'new' else 'warning' }}">
+                                            {{ sale.inventory_type.title() }}
+                                        </span>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="text-success fw-bold">+PKR {{ "{:,.2f}".format(sale.profit) }}</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center py-3">No sales found</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row mt-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-shopping-cart fa-2x text-primary mb-2"></i>
+                <h5>{{ purchases|length }}</h5>
+                <p class="text-muted mb-0">Total Purchases</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-cash-register fa-2x text-success mb-2"></i>
+                <h5>{{ sales|length }}</h5>
+                <p class="text-muted mb-0">Total Sales</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-coins fa-2x text-warning mb-2"></i>
+                <h5>PKR {{ "{:,.2f}".format(total_sales_profit) }}</h5>
+                <p class="text-muted mb-0">Total Sales Profit</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-gift fa-2x text-info mb-2"></i>
+                <h5>PKR {{ "{:,.2f}".format(total_incentives) }}</h5>
+                <p class="text-muted mb-0">Total Incentives</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-update model dropdown based on brand selection
+document.getElementById('brand').addEventListener('change', function() {
+    const brandId = this.value;
+    const modelSelect = document.getElementById('model');
+    
+    // Clear current options
+    modelSelect.innerHTML = '<option value="">All Models</option>';
+    
+    // For now, just reload the page with the brand filter
+    if (brandId) {
+        window.location.href = window.location.pathname + '?brand=' + brandId;
+    }
+});
+</script>
+{% endblock %} 

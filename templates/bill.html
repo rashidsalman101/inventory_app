@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block title %}Sale Bill - Mobile Shop Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 style="font-weight:700;"><i class="fas fa-receipt me-2"></i>Sale Bill</h2>
+    <div>
+        <a href="{{ url_for('internal_report', sale_id=sale.id) }}" class="btn btn-info">
+            <i class="fas fa-chart-line me-2"></i>Internal Report
+        </a>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-primary">
+            <i class="fas fa-home me-2"></i>Dashboard
+        </a>
+        <button onclick="window.print()" class="btn btn-success">
+            <i class="fas fa-print me-2"></i>Print
+        </button>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <!-- Bill Header -->
+                <div class="text-center mb-4">
+                    <h3 class="text-primary">Mobile Shop Manager</h3>
+                    <p class="text-muted mb-1">Inventory Management System</p>
+                    <p class="text-muted mb-0">Sale Receipt</p>
+                </div>
+                
+                <hr>
+                
+                <!-- Sale Details -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <h6 class="text-muted">Sale Information</h6>
+                        <p class="mb-1"><strong>Sale Date:</strong> {{ sale.date.strftime('%Y-%m-%d %H:%M') }}</p>
+                        <p class="mb-1"><strong>Sale ID:</strong> #{{ sale.id }}</p>
+                        <p class="mb-1"><strong>IMEI:</strong> {{ sale.imei_number }}</p>
+                        {% if sale.customer_type == 'individual' and sale.customer_name %}
+                        <p class="mb-0"><strong>Customer:</strong> {{ sale.customer_name }}</p>
+                        {% elif sale.customer_type == 'shop' and sale.shop %}
+                        <p class="mb-0"><strong>Shop:</strong> {{ sale.shop.name }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6 text-md-end">
+                        <h6 class="text-muted">Device Information</h6>
+                        <p class="mb-1"><strong>Brand:</strong> {{ sale.model.brand.name }}</p>
+                        <p class="mb-1"><strong>Model:</strong> {{ sale.model.name }}</p>
+                        <p class="mb-0"><strong>Type:</strong> 
+                            <span class="badge bg-{{ 'success' if sale.inventory_type == 'new' else 'warning' }}">
+                                {{ sale.inventory_type.title() }}
+                            </span>
+                        </p>
+                    </div>
+                </div>
+                
+                <!-- Price Breakdown -->
+                <div class="table-responsive mb-4">
+                    <table class="table table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Description</th>
+                                <th class="text-end">Amount (PKR)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="table-primary">
+                                <td><strong>Total Amount</strong></td>
+                                <td class="text-end"><strong>{{ "{:,.2f}".format(sale.sale_price) }}</strong></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Summary -->
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="card border-primary">
+                            <div class="card-body text-center">
+                                <h6 class="text-primary">Total Amount</h6>
+                                <h3 class="text-primary mb-0">PKR {{ "{:,.2f}".format(sale.sale_price) }}</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Payment Information (for shop sales) -->
+                {% if sale.customer_type == 'shop' %}
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="card border-{{ 'success' if sale.payment_status == 'paid' else 'warning' }}">
+                            <div class="card-body">
+                                <h6 class="text-{{ 'success' if sale.payment_status == 'paid' else 'warning' }}">
+                                    <i class="fas fa-{{ 'check-circle' if sale.payment_status == 'paid' else 'clock' }} me-2"></i>
+                                    Payment Status: {{ sale.payment_status.title() }}
+                                </h6>
+                                {% if sale.paid_amount > 0 %}
+                                <p class="mb-1"><strong>Amount Paid:</strong> PKR {{ "{:,.2f}".format(sale.paid_amount) }}</p>
+                                {% endif %}
+                                {% if sale.due_amount > 0 %}
+                                <p class="mb-1"><strong>Amount Due:</strong> PKR {{ "{:,.2f}".format(sale.due_amount) }}</p>
+                                {% if sale.due_date %}
+                                <p class="mb-0"><strong>Due Date:</strong> {{ sale.due_date.strftime('%Y-%m-%d') }}</p>
+                                {% endif %}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <hr>
+                
+                <!-- Footer -->
+                <div class="text-center">
+                    <p class="text-muted mb-0">Thank you for your business!</p>
+                    <small class="text-muted">Generated on {{ sale.date.strftime('%Y-%m-%d %H:%M:%S') }}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    .btn, .sidebar, .navbar {
+        display: none !important;
+    }
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    body {
+        margin: 0 !important;
+        padding: 20px !important;
+    }
+}
+</style>
+{% endblock %} 

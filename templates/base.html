@@ -33,49 +33,37 @@
                 <i class="fas fa-tachometer-alt me-2"></i>
                 <span>Dashboard</span>
             </a>
-            <a href="{{ url_for('brands') }}" class="nav-link{% if request.endpoint == 'brands' %} active{% endif %}">
-                <i class="fas fa-tag me-2"></i>
-                <span>Brands</span>
+            <a href="{{ url_for('inventory_type') }}" class="nav-link{% if request.endpoint == 'inventory_type' %} active{% endif %}">
+                <i class="fas fa-mobile-alt me-2"></i>
+                <span>New Purchase</span>
             </a>
-            <a href="{{ url_for('models') }}" class="nav-link{% if request.endpoint == 'models' %} active{% endif %}">
-                <i class="fas fa-mobile me-2"></i>
-                <span>Models</span>
-            </a>
-            <a href="{{ url_for('distributors') }}" class="nav-link{% if request.endpoint == 'distributors' %} active{% endif %}">
-                <i class="fas fa-truck me-2"></i>
-                <span>Distributors</span>
-            </a>
-            <a href="{{ url_for('shop_keepers') }}" class="nav-link{% if request.endpoint == 'shop_keepers' %} active{% endif %}">
-                <i class="fas fa-store me-2"></i>
-                <span>Shop Keepers</span>
-            </a>
-            <a href="{{ url_for('add_device') }}" class="nav-link{% if request.endpoint == 'add_device' %} active{% endif %}">
-                <i class="fas fa-plus-circle me-2"></i>
-                <span>Add Device</span>
-            </a>
-            <a href="{{ url_for('transactions') }}" class="nav-link{% if request.endpoint == 'transactions' %} active{% endif %}">
-                <i class="fas fa-exchange-alt me-2"></i>
-                <span>Transactions</span>
-            </a>
-            <a href="{{ url_for('shop_sales') }}" class="nav-link{% if request.endpoint == 'shop_sales' %} active{% endif %}">
+            <a href="{{ url_for('sale_module') }}" class="nav-link{% if request.endpoint == 'sale_module' %} active{% endif %}">
                 <i class="fas fa-shopping-cart me-2"></i>
-                <span>Shop Sales</span>
+                <span>Sale Module</span>
             </a>
-            <a href="{{ url_for('returns') }}" class="nav-link{% if request.endpoint == 'returns' %} active{% endif %}">
-                <i class="fas fa-undo me-2"></i>
-                <span>Returns</span>
-            </a>
-            <a href="{{ url_for('reports') }}" class="nav-link{% if request.endpoint == 'reports' %} active{% endif %}">
-                <i class="fas fa-file-pdf me-2"></i>
-                <span>Reports</span>
+            <a href="{{ url_for('shops') }}" class="nav-link{% if request.endpoint == 'shops' %} active{% endif %}">
+                <i class="fas fa-store me-2"></i>
+                <span>Shops</span>
             </a>
             <a href="{{ url_for('pending_payments') }}" class="nav-link{% if request.endpoint == 'pending_payments' %} active{% endif %}">
                 <i class="fas fa-clock me-2"></i>
                 <span>Pending Payments</span>
             </a>
-            <a href="{{ url_for('profile') }}" class="nav-link{% if request.endpoint == 'profile' %} active{% endif %}">
-                <i class="fas fa-user me-2"></i>
-                <span>Profile</span>
+            <a href="{{ url_for('incentives') }}" class="nav-link{% if request.endpoint == 'incentives' %} active{% endif %}">
+                <i class="fas fa-gift me-2"></i>
+                <span>Incentives</span>
+            </a>
+            <a href="{{ url_for('shop_ledger') }}" class="nav-link{% if request.endpoint == 'shop_ledger' %} active{% endif %}">
+                <i class="fas fa-book me-2"></i>
+                <span>Shop Ledger</span>
+            </a>
+            <a href="{{ url_for('brands') }}" class="nav-link{% if request.endpoint == 'brands' %} active{% endif %}">
+                <i class="fas fa-tag me-2"></i>
+                <span>Brands & Models</span>
+            </a>
+            <a href="{{ url_for('export_report') }}" class="nav-link">
+                <i class="fas fa-file-pdf me-2"></i>
+                <span>Export Report</span>
             </a>
         </nav>
         <div class="logout">

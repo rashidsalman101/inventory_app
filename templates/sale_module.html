@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Sale Module - Mobile Shop Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 style="font-weight:700;"><i class="fas fa-shopping-cart me-2"></i>Sale Module</h2>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-search me-2"></i>Search Device by IMEI</h5>
+            </div>
+            <div class="card-body">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+                
+                <form method="POST" action="{{ url_for('search_imei') }}">
+                    <div class="mb-4">
+                        <label for="imei" class="form-label">IMEI Number</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control form-control-lg" id="imei" name="imei" 
+                                   placeholder="Enter or scan IMEI number" required maxlength="15">
+                            <button class="btn btn-primary" type="submit">
+                                <i class="fas fa-search me-2"></i>Search
+                            </button>
+                        </div>
+                        <div class="form-text">Enter the 15-digit IMEI number to search for the device</div>
+                    </div>
+                </form>
+                
+                <!-- IMEI Scanner (if available) -->
+                <div class="text-center">
+                    <button class="btn btn-outline-secondary" onclick="startScanner()">
+                        <i class="fas fa-barcode me-2"></i>Use Barcode Scanner
+                    </button>
+                </div>
+                
+                <!-- Instructions -->
+                <div class="mt-4">
+                    <h6>How to use:</h6>
+                    <ol>
+                        <li>Enter the IMEI number of the device you want to sell</li>
+                        <li>The system will search for the device in your inventory</li>
+                        <li>If found, you can proceed to enter the sale price</li>
+                        <li>The system will automatically calculate the profit</li>
+                        <li>A bill will be generated after the sale</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function startScanner() {
+    // Focus on the IMEI input field
+    document.getElementById('imei').focus();
+    
+    // Show a message about scanner
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-info mt-3';
+    alert.innerHTML = '<i class="fas fa-info-circle me-2"></i>Ready to scan! Use your barcode scanner to scan the IMEI.';
+    
+    const form = document.querySelector('form');
+    form.appendChild(alert);
+    
+    // Remove the alert after 5 seconds
+    setTimeout(() => {
+        if (alert.parentNode) {
+            alert.remove();
+        }
+    }, 5000);
+}
+
+// Auto-submit form when IMEI is scanned (15 digits)
+document.getElementById('imei').addEventListener('input', function(e) {
+    const imei = e.target.value.replace(/\D/g, ''); // Remove non-digits
+    e.target.value = imei; // Update the input with cleaned value
+    
+    if (imei.length === 15) {
+        // Auto-submit after a short delay
+        setTimeout(() => {
+            document.querySelector('form').submit();
+        }, 500);
+    }
+});
+</script>
+{% endblock %} 

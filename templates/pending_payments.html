@@ -3,93 +3,159 @@
 {% block title %}Pending Payments - Mobile Shop Manager{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-12">
-        <h1 class="mb-4">
-            <i class="fas fa-credit-card me-2"></i>Pending Payments
-        </h1>
-    </div>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 style="font-weight:700;"><i class="fas fa-clock me-2"></i>Pending Payments</h2>
+    <a href="{{ url_for('shops') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left me-2"></i>Back to Shops
+    </a>
 </div>
 
-<!-- Summary Card -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-body text-center">
-                <h3 class="text-warning mb-2">PKR {{ "%.2f"|format(total_pending) }}</h3>
-                <p class="mb-0">Total Outstanding Balance</p>
+{% if shop_pending_data %}
+<div class="row">
+    {% for data in shop_pending_data %}
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">{{ data.shop.name }}</h5>
+                <span class="badge bg-{{ 'danger' if data.overdue_sales > 0 else 'warning' }}">
+                    {{ 'Overdue' if data.overdue_sales > 0 else 'Pending' }}
+                </span>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <p class="mb-1"><strong>Owner:</strong> {{ data.shop.owner_name }}</p>
+                    <p class="mb-1"><strong>Contact:</strong> {{ data.shop.contact_info or 'N/A' }}</p>
+                    
+                </div>
+                
+                <!-- Payment Summary -->
+                <div class="alert alert-{{ 'danger' if data.overdue_sales > 0 else 'warning' }}">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <h6 class="mb-1">Due Amount</h6>
+                            <h5 class="text-{{ 'danger' if data.overdue_sales > 0 else 'warning' }}">
+                                PKR {{ "{:,.2f}".format(data.total_due) }}
+                            </h5>
+                        </div>
+                        <div class="col-6">
+                            <h6 class="mb-1">Overdue Sales</h6>
+                            <h5 class="text-{{ 'danger' if data.overdue_sales > 0 else 'warning' }}">
+                                {{ data.overdue_sales }}
+                            </h5>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('shop_details', shop_id=data.shop.id) }}" class="btn btn-outline-primary btn-sm flex-fill">
+                        <i class="fas fa-eye me-1"></i>View Details
+                    </a>
+                    <button class="btn btn-outline-success btn-sm" onclick="addPayment('{{ data.shop.id }}')">
+                        <i class="fas fa-money-bill me-1"></i>Add Payment
+                    </button>
+                </div>
             </div>
         </div>
     </div>
+    {% endfor %}
 </div>
 
-<!-- Pending Payments Table -->
-<div class="row">
+<!-- Summary Card -->
+<div class="row mt-4">
     <div class="col-12">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">
-                    <i class="fas fa-clock me-2"></i>Unpaid Sales
-                </h5>
+                <h5><i class="fas fa-chart-bar me-2"></i>Payment Summary</h5>
             </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Buyer</th>
-                                <th>Model</th>
-                                <th>Distributor</th>
-                                <th>Quantity</th>
-                                <th>Price</th>
-                                <th>Total</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for transaction in pending %}
-                            <tr>
-                                <td>{{ transaction.date.strftime('%Y-%m-%d %H:%M') }}</td>
-                                <td>
-                                    <strong>{{ transaction.buyer_name or 'Unknown' }}</strong>
-                                </td>
-                                <td>{{ transaction.model.name }}</td>
-                                <td>{{ transaction.distributor.name }}</td>
-                                <td>{{ transaction.quantity }}</td>
-                                <td>PKR {{ "%.2f"|format(transaction.price) }}</td>
-                                <td>
-                                    <strong>PKR {{ "%.2f"|format(transaction.price * transaction.quantity) }}</strong>
-                                </td>
-                                <td>
-                                    <form method="POST" action="{{ url_for('mark_paid', transaction_id=transaction.id) }}" style="display: inline;">
-                                        <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Mark this payment as received?')">
-                                            <i class="fas fa-check me-1"></i>Mark Paid
-                                        </button>
-                                    </form>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-3">
+                        <h4 class="text-warning">{{ shop_pending_data|length }}</h4>
+                        <p class="text-muted">Shops with Pending Payments</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h4 class="text-danger">{{ shop_pending_data|selectattr('overdue_sales', 'gt', 0)|list|length }}</h4>
+                        <p class="text-muted">Shops with Overdue Payments</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h4 class="text-primary">PKR {{ "{:,.2f}".format(shop_pending_data|sum(attribute='total_due')) }}</h4>
+                        <p class="text-muted">Total Due Amount</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h4 class="text-info">{{ shop_pending_data|sum(attribute='overdue_sales') }}</h4>
+                        <p class="text-muted">Total Overdue Sales</p>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Empty State -->
-{% if not pending %}
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-body text-center py-5">
-                <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
-                <h4>No Pending Payments</h4>
-                <p class="text-muted">All sales have been paid for!</p>
-            </div>
+{% else %}
+<div class="col-12">
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+            <h5>No Pending Payments!</h5>
+            <p class="text-muted">All shops have cleared their payments</p>
+            <a href="{{ url_for('shops') }}" class="btn btn-primary">
+                <i class="fas fa-store me-2"></i>View All Shops
+            </a>
         </div>
     </div>
 </div>
 {% endif %}
+
+<!-- Add Payment Modal -->
+<div class="modal fade" id="addPaymentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Payment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('add_payment') }}">
+                <input type="hidden" id="paymentShopId" name="shop_id">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="paymentAmount" class="form-label">Payment Amount (PKR)</label>
+                        <input type="number" class="form-control" id="paymentAmount" name="amount" 
+                               step="0.01" min="0" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="paymentMethod" class="form-label">Payment Method</label>
+                        <select class="form-control" id="paymentMethod" name="payment_method" required>
+                            <option value="cash">Cash</option>
+                            <option value="bank_transfer">Bank Transfer</option>
+                            <option value="cheque">Cheque</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="referenceNumber" class="form-label">Reference Number</label>
+                        <input type="text" class="form-control" id="referenceNumber" name="reference_number" 
+                               placeholder="For bank transfers or cheques">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="paymentNotes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="paymentNotes" name="notes" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Add Payment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function addPayment(shopId) {
+    document.getElementById('paymentShopId').value = shopId;
+    document.getElementById('addPaymentModal').modal('show');
+}
+</script>
 {% endblock %} 

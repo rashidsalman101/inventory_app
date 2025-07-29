@@ -6,59 +6,151 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 style="font-weight:700;">Welcome back, {{ current_user.name.split(' ')[0] }}</h2>
     <div>
-        <a href="{{ url_for('export_comprehensive_report') }}" class="btn btn-success">
-            <i class="fas fa-file-excel me-2"></i>Export Comprehensive Report
+        <a href="{{ url_for('export_report') }}" class="btn btn-success">
+            <i class="fas fa-file-pdf me-2"></i>Export Report
         </a>
     </div>
 </div>
 
+<!-- Profit Summary Cards -->
 <div class="summary-cards">
     <div class="summary-card">
-        <p>Total Profit</p>
-        <h2>PKR {{ "{:,}".format(gross_profit) }}</h2>
+        <p>Total Profit (Including Incentives)</p>
+        <h2>PKR {{ "{:,}".format(total_profit) }}</h2>
     </div>
     <div class="summary-card">
-        <p>Net Profit (Including Incentives)</p>
-        <h2>PKR {{ "{:,}".format(gross_profit) }}</h2>
+        <p>Monthly Profit (Including Incentives)</p>
+        <h2>PKR {{ "{:,}".format(monthly_profit) }}</h2>
     </div>
     <div class="summary-card">
-        <p>Net Profit (Excluding Incentives)</p>
-        <h2>PKR {{ "{:,}".format(gross_profit) }}</h2>
+        <p>Sales Profit Only</p>
+        <h2>PKR {{ "{:,}".format(total_sales_profit) }}</h2>
     </div>
     <div class="summary-card">
-        <p>Gross Profit</p>
-        <h2>PKR {{ "{:,}".format(gross_profit) }}</h2>
+        <p>Total Incentives</p>
+        <h2>PKR {{ "{:,}".format(total_incentives) }}</h2>
     </div>
 </div>
 
+<!-- Inventory Stats -->
 <div class="row mb-4">
-    <div class="col-lg-7">
-        <div class="chart-container">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <h5 class="mb-0" style="font-weight:600;">Profit Trend</h5>
-                <select class="form-select form-select-sm w-auto" style="min-width:100px;">
-                    <option>Last 30 d</option>
-                    <option>Last 7 d</option>
-                </select>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-mobile-alt fa-2x text-primary mb-3"></i>
+                <h4>{{ total_devices_purchased }}</h4>
+                <p class="text-muted">Total Devices Purchased</p>
             </div>
-            <canvas id="profitTrendChart" height="120"></canvas>
         </div>
     </div>
-    <div class="col-lg-5">
-        <div class="recent-activity">
-            <h5 class="mb-3" style="font-weight:600;">Recent Activity</h5>
-            {% for t in recent_transactions %}
-            <div class="activity-row">
-                <div class="activity-icon bg-success-subtle">
-                    <i class="fas fa-arrow-up"></i>
-                </div>
-                <div>
-                    <div style="font-weight:600;">{{ t.type.title() }}</div>
-                    <div class="text-muted" style="font-size:0.95rem;">{{ t.date.strftime('%B %d, %Y %I:%M %p') }}</div>
-                </div>
-                <div class="ms-auto" style="font-weight:600;">PKR {{ "{:,}".format(t.price * t.quantity) }}</div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-shopping-cart fa-2x text-success mb-3"></i>
+                <h4>{{ total_devices_sold }}</h4>
+                <p class="text-muted">Total Devices Sold</p>
             </div>
-            {% endfor %}
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-warehouse fa-2x text-warning mb-3"></i>
+                <h4>{{ available_devices }}</h4>
+                <p class="text-muted">Available Devices</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-shopping-cart me-2"></i>Recent Sales</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_sales %}
+                    {% for sale in recent_sales %}
+                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                        <div>
+                            <strong>{{ sale.model.brand.name }} {{ sale.model.name }}</strong><br>
+                            <small class="text-muted">IMEI: {{ sale.imei_number }}</small><br>
+                            <small class="text-muted">{{ sale.date.strftime('%Y-%m-%d %H:%M') }}</small>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-success">+PKR {{ "{:,.2f}".format(sale.profit) }}</span><br>
+                            <small class="text-muted">{{ sale.inventory_type.title() }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">No recent sales</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-plus-circle me-2"></i>Recent Purchases</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_purchases %}
+                    {% for purchase in recent_purchases %}
+                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                        <div>
+                            <strong>{{ purchase.model.brand.name }} {{ purchase.model.name }}</strong><br>
+                            <small class="text-muted">Qty: {{ purchase.quantity }} devices</small><br>
+                            <small class="text-muted">{{ purchase.date.strftime('%Y-%m-%d %H:%M') }}</small>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-primary">PKR {{ "{:,.2f}".format(purchase.purchase_price) }}</span><br>
+                            <small class="text-muted">{{ purchase.inventory_type.title() }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">No recent purchases</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-bolt me-2"></i>Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('inventory_type') }}" class="btn btn-primary w-100">
+                            <i class="fas fa-plus me-2"></i>New Purchase
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('sale_module') }}" class="btn btn-success w-100">
+                            <i class="fas fa-shopping-cart me-2"></i>Make Sale
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('incentives') }}" class="btn btn-warning w-100">
+                            <i class="fas fa-gift me-2"></i>Add Incentive
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('shop_ledger') }}" class="btn btn-info w-100">
+                            <i class="fas fa-book me-2"></i>View Ledger
+                        </a>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>

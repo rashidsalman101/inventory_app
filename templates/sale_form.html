@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+
+{% block title %}Complete Sale - Mobile Shop Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 style="font-weight:700;"><i class="fas fa-cash-register me-2"></i>Complete Sale</h2>
+    <a href="{{ url_for('sale_module') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left me-2"></i>Back to Sale Module
+    </a>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-mobile-alt me-2"></i>Device Information</h5>
+            </div>
+            <div class="card-body">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+                
+                <!-- Device Details -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="card border-primary">
+                            <div class="card-body">
+                                <h6 class="card-title text-primary">Device Details</h6>
+                                <p class="mb-1"><strong>Brand:</strong> {{ purchase.model.brand.name }}</p>
+                                <p class="mb-1"><strong>Model:</strong> {{ purchase.model.name }}</p>
+                                <p class="mb-1"><strong>IMEI:</strong> {{ imei }}</p>
+                                <p class="mb-1"><strong>Type:</strong> 
+                                    <span class="badge bg-{{ 'success' if purchase.inventory_type == 'new' else 'warning' }}">
+                                        {{ purchase.inventory_type.title() }}
+                                    </span>
+                                </p>
+                                <p class="mb-0"><strong>Purchase Price:</strong> PKR {{ "{:,.2f}".format(purchase.purchase_price) }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card border-success">
+                            <div class="card-body">
+                                <h6 class="card-title text-success">Sale Information</h6>
+                                <p class="mb-1"><strong>Purchase Date:</strong> {{ purchase.date.strftime('%Y-%m-%d') }}</p>
+                                <p class="mb-1"><strong>Quantity in Batch:</strong> {{ purchase.quantity }}</p>
+                                <p class="mb-0"><strong>Status:</strong> 
+                                    <span class="badge bg-success">Available for Sale</span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Sale Form -->
+                <form method="POST" action="{{ url_for('add_sale') }}">
+                    <input type="hidden" name="model_id" value="{{ purchase.model.id }}">
+                    <input type="hidden" name="imei_number" value="{{ imei }}">
+                    <input type="hidden" name="purchase_price" value="{{ purchase.purchase_price }}">
+                    <input type="hidden" name="inventory_type" value="{{ purchase.inventory_type }}">
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="customer_type" class="form-label">Customer Type</label>
+                            <select class="form-control" id="customer_type" name="customer_type" required>
+                                <option value="">Select Customer Type</option>
+                                <option value="individual">Individual Customer</option>
+                                <option value="shop">Shop</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="sale_price" class="form-label">Sale Price (PKR)</label>
+                            <input type="number" class="form-control" id="sale_price" name="sale_price" 
+                                   step="0.01" min="0" required>
+                        </div>
+                    </div>
+                    
+                    <!-- Customer Details -->
+                    <div id="individual_details" style="display: none;">
+                        <div class="mb-3">
+                            <label for="customer_name" class="form-label">Customer Name</label>
+                            <input type="text" class="form-control" id="customer_name" name="customer_name">
+                        </div>
+                    </div>
+                    
+                    <div id="shop_details" style="display: none;">
+                        <div class="mb-3">
+                            <label for="shop_id" class="form-label">Select Shop</label>
+                            <select class="form-control" id="shop_id" name="shop_id">
+                                <option value="">Select Shop</option>
+                                {% for shop in shops %}
+                                <option value="{{ shop.id }}">
+                                    {{ shop.name }} ({{ shop.owner_name }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="paid_amount" class="form-label">Amount Paid by Shop (PKR)</label>
+                            <input type="number" class="form-control" id="paid_amount" name="paid_amount" 
+                                   step="0.01" min="0" value="0" onchange="calculateDueAmount()">
+                            <small class="text-muted">Leave 0 if no payment received</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="due_date" class="form-label">Payment Due Date</label>
+                            <input type="date" class="form-control" id="due_date" name="due_date">
+                        </div>
+                        <div class="alert alert-warning" id="dueAmountAlert" style="display: none;">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Due Amount: <span id="dueAmountDisplay">PKR 0.00</span></strong>
+                        </div>
+                    </div>
+                    
+                    <!-- Profit Preview -->
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-calculator me-2"></i>Profit Preview</h6>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <small class="text-muted">Purchase Price:</small><br>
+                                <strong>PKR {{ "{:,.2f}".format(purchase.purchase_price) }}</strong>
+                            </div>
+                            <div class="col-md-4">
+                                <small class="text-muted">Sale Price:</small><br>
+                                <strong id="salePriceDisplay">PKR 0.00</strong>
+                            </div>
+                            <div class="col-md-4">
+                                <small class="text-muted">Profit:</small><br>
+                                <strong id="profitDisplay" class="text-success">PKR 0.00</strong>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-success flex-fill">
+                            <i class="fas fa-check me-2"></i>Complete Sale
+                        </button>
+                        <a href="{{ url_for('sale_module') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-2"></i>Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Handle customer type selection
+document.getElementById('customer_type').addEventListener('change', function() {
+    const customerType = this.value;
+    const individualDetails = document.getElementById('individual_details');
+    const shopDetails = document.getElementById('shop_details');
+    
+    if (customerType === 'individual') {
+        individualDetails.style.display = 'block';
+        shopDetails.style.display = 'none';
+        document.getElementById('customer_name').required = true;
+        document.getElementById('shop_id').required = false;
+        document.getElementById('due_date').required = false;
+    } else if (customerType === 'shop') {
+        individualDetails.style.display = 'none';
+        shopDetails.style.display = 'block';
+        document.getElementById('customer_name').required = false;
+        document.getElementById('shop_id').required = true;
+        document.getElementById('due_date').required = true;
+    } else {
+        individualDetails.style.display = 'none';
+        shopDetails.style.display = 'none';
+        document.getElementById('customer_name').required = false;
+        document.getElementById('shop_id').required = false;
+        document.getElementById('due_date').required = false;
+    }
+});
+
+// Auto-calculate profit as sale price changes
+document.getElementById('sale_price').addEventListener('input', function(e) {
+    const salePrice = parseFloat(e.target.value) || 0;
+    const purchasePrice = parseFloat(document.querySelector('input[name="purchase_price"]').value);
+    const profit = salePrice - purchasePrice;
+    
+    // Update displays
+    document.getElementById('salePriceDisplay').textContent = `PKR ${salePrice.toFixed(2)}`;
+    document.getElementById('profitDisplay').textContent = `PKR ${profit.toFixed(2)}`;
+    
+    // Change color based on profit
+    const profitElement = document.getElementById('profitDisplay');
+    if (profit >= 0) {
+        profitElement.className = 'text-success';
+    } else {
+        profitElement.className = 'text-danger';
+    }
+    
+    // Also calculate due amount for shop sales
+    calculateDueAmount();
+});
+
+// Calculate due amount for shop sales
+function calculateDueAmount() {
+    const salePrice = parseFloat(document.getElementById('sale_price').value) || 0;
+    const paidAmount = parseFloat(document.getElementById('paid_amount').value) || 0;
+    const dueAmount = salePrice - paidAmount;
+    
+    const dueAmountAlert = document.getElementById('dueAmountAlert');
+    const dueAmountDisplay = document.getElementById('dueAmountDisplay');
+    
+    if (dueAmount > 0) {
+        dueAmountDisplay.textContent = `PKR ${dueAmount.toFixed(2)}`;
+        dueAmountAlert.style.display = 'block';
+        dueAmountAlert.className = 'alert alert-warning';
+    } else if (paidAmount > salePrice) {
+        dueAmountDisplay.textContent = `PKR 0.00 (Overpayment: PKR ${Math.abs(dueAmount).toFixed(2)})`;
+        dueAmountAlert.style.display = 'block';
+        dueAmountAlert.className = 'alert alert-info';
+    } else {
+        dueAmountAlert.style.display = 'none';
+    }
+}
+
+// Focus on sale price input when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('sale_price').focus();
+});
+</script>
+{% endblock %} 

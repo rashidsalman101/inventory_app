@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+
+{% block title %}Shops - Mobile Shop Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 style="font-weight:700;"><i class="fas fa-store me-2"></i>Shops</h2>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addShopModal">
+        <i class="fas fa-plus me-2"></i>Add Shop
+    </button>
+</div>
+
+<div class="row">
+    {% for shop in shops %}
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">{{ shop.name }}</h5>
+                <span class="badge bg-{{ 'success' if shop.total_due == 0 else 'warning' }}">
+                    {{ 'Paid Up' if shop.total_due == 0 else 'Has Due' }}
+                </span>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <p class="mb-1"><strong>Owner:</strong> {{ shop.owner_name }}</p>
+                    <p class="mb-1"><strong>Contact:</strong> {{ shop.contact_info or 'N/A' }}</p>
+                    
+                    <p class="mb-0"><strong>Address:</strong> {{ shop.address or 'N/A' }}</p>
+                </div>
+                
+                <!-- Financial Summary -->
+                <div class="row text-center mb-3">
+                    <div class="col-4">
+                        <small class="text-muted">Total Sales</small><br>
+                        <strong class="text-primary">PKR {{ "{:,.0f}".format(shop.total_sales or 0) }}</strong>
+                    </div>
+                    <div class="col-4">
+                        <small class="text-muted">Paid</small><br>
+                        <strong class="text-success">PKR {{ "{:,.0f}".format(shop.total_paid or 0) }}</strong>
+                    </div>
+                    <div class="col-4">
+                        <small class="text-muted">Due</small><br>
+                        <strong class="text-{{ 'success' if (shop.total_due or 0) == 0 else 'danger' }}">
+                            PKR {{ "{:,.0f}".format(shop.total_due or 0) }}
+                        </strong>
+                    </div>
+                </div>
+                
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('shop_details', shop_id=shop.id) }}" class="btn btn-outline-primary btn-sm flex-fill">
+                        <i class="fas fa-eye me-1"></i>Details
+                    </a>
+                    <button class="btn btn-outline-success btn-sm" onclick="addPayment('{{ shop.id }}')">
+                        <i class="fas fa-money-bill me-1"></i>Payment
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    
+    {% if not shops %}
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="fas fa-store fa-3x text-muted mb-3"></i>
+                <h5>No shops added yet</h5>
+                <p class="text-muted">Start by adding your first shop</p>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addShopModal">
+                    <i class="fas fa-plus me-2"></i>Add First Shop
+                </button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Add Shop Modal -->
+<div class="modal fade" id="addShopModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add New Shop</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('add_shop') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="shopName" class="form-label">Shop Name</label>
+                        <input type="text" class="form-control" id="shopName" name="name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="ownerName" class="form-label">Owner Name</label>
+                        <input type="text" class="form-control" id="ownerName" name="owner_name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="contactInfo" class="form-label">Contact Information</label>
+                        <textarea class="form-control" id="contactInfo" name="contact_info" rows="2" 
+                                  placeholder="Phone, email, etc."></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="address" class="form-label">Address</label>
+                        <textarea class="form-control" id="address" name="address" rows="2"></textarea>
+                    </div>
+                    
+
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Shop</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Payment Modal -->
+<div class="modal fade" id="addPaymentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Payment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('add_payment') }}">
+                <input type="hidden" id="paymentShopId" name="shop_id">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="paymentAmount" class="form-label">Payment Amount (PKR)</label>
+                        <input type="number" class="form-control" id="paymentAmount" name="amount" 
+                               step="0.01" min="0" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="paymentMethod" class="form-label">Payment Method</label>
+                        <select class="form-control" id="paymentMethod" name="payment_method" required>
+                            <option value="cash">Cash</option>
+                            <option value="bank_transfer">Bank Transfer</option>
+                            <option value="cheque">Cheque</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="referenceNumber" class="form-label">Reference Number</label>
+                        <input type="text" class="form-control" id="referenceNumber" name="reference_number" 
+                               placeholder="For bank transfers or cheques">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="paymentNotes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="paymentNotes" name="notes" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Add Payment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        <div class="position-fixed top-0 end-0 p-3" style="z-index: 11">
+            {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+{% endwith %}
+
+<script>
+function addPayment(shopId) {
+    document.getElementById('paymentShopId').value = shopId;
+    document.getElementById('addPaymentModal').modal('show');
+}
+
+// Calculate shop financials (this would be better done server-side)
+document.addEventListener('DOMContentLoaded', function() {
+    // This is a placeholder - in a real app, you'd calculate these server-side
+    // For now, we'll just show the basic structure
+});
+</script>
+{% endblock %} 

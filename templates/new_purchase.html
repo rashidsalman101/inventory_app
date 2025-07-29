@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}New Purchase - Mobile Shop Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 style="font-weight:700;"><i class="fas fa-plus-circle me-2"></i>New Purchase</h2>
+    <a href="{{ url_for('brands') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left me-2"></i>Back to Brands
+    </a>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-mobile-alt me-2"></i>{{ model.brand.name }} {{ model.name }}</h5>
+            </div>
+            <div class="card-body">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+                
+                <form method="POST" action="{{ url_for('add_purchase') }}">
+                    <input type="hidden" name="model_id" value="{{ model.id }}">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="inventory_type" class="form-label">Inventory Type</label>
+                                <select class="form-control" id="inventory_type" name="inventory_type" required>
+                                    <option value="">Select Type</option>
+                                    <option value="new">New</option>
+                                    <option value="used">Used</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="quantity" class="form-label">Quantity</label>
+                                <input type="number" class="form-control" id="quantity" name="quantity" 
+                                       min="1" max="100" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="purchase_price" class="form-label">Purchase Price (PKR per device)</label>
+                        <input type="number" class="form-control" id="purchase_price" name="purchase_price" 
+                               step="0.01" min="0" required>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="imei_numbers" class="form-label">IMEI Numbers</label>
+                        <textarea class="form-control" id="imei_numbers" name="imei_numbers" rows="6" 
+                                  placeholder="Enter IMEI numbers (one per line)&#10;Example:&#10;123456789012345&#10;123456789012346&#10;123456789012347" required></textarea>
+                        <div class="form-text">
+                            Enter one IMEI number per line. The number of IMEIs must match the quantity.
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-success flex-fill">
+                            <i class="fas fa-save me-2"></i>Save Purchase
+                        </button>
+                        <button type="button" class="btn btn-outline-primary" onclick="scanIMEI()">
+                            <i class="fas fa-barcode me-2"></i>Scan IMEI
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-set inventory type from session storage if available
+document.addEventListener('DOMContentLoaded', function() {
+    const inventoryType = sessionStorage.getItem('inventoryType');
+    if (inventoryType) {
+        document.getElementById('inventory_type').value = inventoryType;
+    }
+});
+
+// Update IMEI count display
+document.getElementById('quantity').addEventListener('input', function(e) {
+    const quantity = parseInt(e.target.value) || 0;
+    const textarea = document.getElementById('imei_numbers');
+    
+    if (quantity > 0) {
+        let placeholder = 'Enter IMEI numbers (one per line)\nExample:\n';
+        for (let i = 1; i <= Math.min(quantity, 3); i++) {
+            placeholder += `12345678901234${i}\n`;
+        }
+        if (quantity > 3) {
+            placeholder += '...';
+        }
+        textarea.placeholder = placeholder.trim();
+    }
+});
+
+// Validate IMEI count before submit
+document.querySelector('form').addEventListener('submit', function(e) {
+    const quantity = parseInt(document.getElementById('quantity').value) || 0;
+    const imeiText = document.getElementById('imei_numbers').value.trim();
+    const imeiCount = imeiText ? imeiText.split('\n').filter(line => line.trim()).length : 0;
+    
+    if (imeiCount !== quantity) {
+        e.preventDefault();
+        alert(`Number of IMEIs (${imeiCount}) must match quantity (${quantity})`);
+        return false;
+    }
+});
+
+function scanIMEI() {
+    const textarea = document.getElementById('imei_numbers');
+    textarea.focus();
+    
+    // Show scanner instructions
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-info mt-3';
+    alert.innerHTML = '<i class="fas fa-barcode me-2"></i>Ready to scan! Use your barcode scanner to scan IMEIs directly into the text area.';
+    
+    const form = document.querySelector('form');
+    form.appendChild(alert);
+    
+    // Remove alert after 5 seconds
+    setTimeout(() => {
+        if (alert.parentNode) {
+            alert.remove();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %} 
