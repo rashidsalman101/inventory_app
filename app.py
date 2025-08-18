@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -47,6 +47,14 @@ class Model(db.Model):
     purchases = db.relationship('Purchase', backref='model', lazy=True)
     sales = db.relationship('Sale', backref='model', lazy=True)
 
+class Supplier(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    contact_info = db.Column(db.Text)
+    address = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    purchases = db.relationship('Purchase', backref='supplier', lazy=True)
+
 class Purchase(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     model_id = db.Column(db.Integer, db.ForeignKey('model.id'), nullable=False)
@@ -54,6 +62,8 @@ class Purchase(db.Model):
     quantity = db.Column(db.Integer, nullable=False)
     purchase_price = db.Column(db.Float, nullable=False)
     imei_numbers = db.Column(db.Text, nullable=False)  # JSON string of IMEI numbers
+    supplier_id = db.Column(db.Integer, db.ForeignKey('supplier.id'), nullable=True)
+    bill_number = db.Column(db.String(50), nullable=True)
     date = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     user = db.relationship('User', backref='purchases')
@@ -80,10 +90,11 @@ class Sale(db.Model):
     customer_type = db.Column(db.String(20), nullable=False)  # 'individual' or 'shop'
     shop_id = db.Column(db.Integer, db.ForeignKey('shop.id'), nullable=True)  # NULL for individual
     customer_name = db.Column(db.String(100), nullable=True)  # For individual customers
-    payment_status = db.Column(db.String(20), default='pending')  # 'paid', 'pending', 'partial'
+    payment_status = db.Column(db.String(20), default='paid')  # 'paid', 'pending', 'partial'
     paid_amount = db.Column(db.Float, default=0.0)
     due_amount = db.Column(db.Float, default=0.0)
-    due_date = db.Column(db.DateTime, nullable=True)  # For shop payments
+    due_date = db.Column(db.DateTime, nullable=True)  # Optional due date
+    bill_number = db.Column(db.String(50), nullable=True)
     date = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     user = db.relationship('User', backref='sales')
@@ -283,6 +294,8 @@ def add_purchase():
     quantity = int(request.form.get('quantity'))
     purchase_price = float(request.form.get('purchase_price'))
     imei_numbers = request.form.get('imei_numbers')  # Textarea with IMEIs
+    supplier_id = request.form.get('supplier_id')
+    bill_number = request.form.get('bill_number')
     
     # Process IMEI numbers (split by newlines and clean)
     imei_list = [imei.strip() for imei in imei_numbers.split('\n') if imei.strip()]
@@ -291,6 +304,38 @@ def add_purchase():
         flash(f'Number of IMEIs ({len(imei_list)}) must match quantity ({quantity})', 'error')
         return redirect(url_for('new_purchase', model_id=model_id))
     
+    # Validate each IMEI
+    invalid_imeis = []
+    for imei in imei_list:
+        # Validate IMEI format (9-15 digits)
+        if not imei.isdigit() or len(imei) < 9 or len(imei) > 15:
+            invalid_imeis.append(imei)
+            continue
+            
+        # Check if IMEI already exists in purchases
+        purchases = Purchase.query.filter_by(user_id=current_user.id).all()
+        for purchase in purchases:
+            existing_imei_list = json.loads(purchase.imei_numbers)
+            if imei in existing_imei_list:
+                # Check if it was sold
+                existing_sale = Sale.query.filter_by(
+                    imei_number=imei,
+                    user_id=current_user.id
+                ).first()
+                
+                if not existing_sale:
+                    # IMEI exists and not sold - cannot add
+                    invalid_imeis.append(imei)
+                    break
+    
+    if invalid_imeis:
+        flash(f'Cannot add IMEIs: {", ".join(invalid_imeis)} - they already exist in inventory and have not been sold, or have invalid format (must be 9-15 digits)', 'error')
+        return redirect(url_for('new_purchase', model_id=model_id))
+    
+    # Generate bill number if not provided
+    if not bill_number:
+        bill_number = f"PURCHASE-{datetime.now().strftime('%Y%m%d')}-{Purchase.query.count() + 1:04d}"
+    
     # Save purchase
     purchase = Purchase(
         model_id=model_id,
@@ -298,12 +343,14 @@ def add_purchase():
         quantity=quantity,
         purchase_price=purchase_price,
         imei_numbers=json.dumps(imei_list),
+        supplier_id=supplier_id if supplier_id else None,
+        bill_number=bill_number,
         user_id=current_user.id
     )
     db.session.add(purchase)
     db.session.commit()
     
-    flash('Purchase added successfully!', 'success')
+    flash(f'Purchase added successfully! Quantity: {quantity}, Bill: {bill_number}', 'success')
     return redirect(url_for('dashboard'))
 
 @app.route('/sale')
@@ -317,6 +364,15 @@ def sale_module():
 def search_imei():
     """Search for device by IMEI"""
     imei = request.form.get('imei')
+    
+    if not imei:
+        flash('Please enter an IMEI number', 'error')
+        return redirect(url_for('sale_module'))
+    
+    # Validate IMEI format (9-15 digits)
+    if not imei.isdigit() or len(imei) < 9 or len(imei) > 15:
+        flash('IMEI must be 9-15 digits', 'error')
+        return redirect(url_for('sale_module'))
     
     # Find the purchase containing this IMEI
     purchases = Purchase.query.all()
@@ -390,6 +446,10 @@ def add_sale():
         else:
             payment_status = 'pending'
     
+    # Generate bill number
+    bill_number = f"BILL-{datetime.now().strftime('%Y%m%d')}-{Sale.query.count() + 1:04d}"
+    
+    # Create sale record
     sale = Sale(
         model_id=model_id,
         imei_number=imei_number,
@@ -404,21 +464,317 @@ def add_sale():
         paid_amount=paid_amount,
         due_amount=due_amount,
         due_date=due_date,
+        bill_number=bill_number,
         user_id=current_user.id
     )
+    
     db.session.add(sale)
     db.session.commit()
     
-    if payment_status == 'paid':
-        flash(f'Sale completed! Profit: PKR {profit:.2f}', 'success')
-    else:
-        flash(f'Credit sale completed! Due amount: PKR {due_amount:.2f}', 'warning')
+    flash('Sale completed successfully!', 'success')
+    return redirect(url_for('dashboard'))
+
+@app.route('/profits')
+@login_required
+def profits():
+    """Password-protected profits screen"""
+    return render_template('profits.html')
+
+@app.route('/verify_profit_password', methods=['POST'])
+@login_required
+def verify_profit_password():
+    """Verify password for profits screen"""
+    password = request.form.get('password')
     
-    return redirect(url_for('generate_bill', sale_id=sale.id))
+    if check_password_hash(current_user.password_hash, password):
+        # Store verification in session
+        session['profit_verified'] = True
+        return redirect(url_for('profits_detailed'))
+    else:
+        flash('Incorrect password!', 'error')
+        return redirect(url_for('profits'))
+
+@app.route('/profits_detailed')
+@login_required
+def profits_detailed():
+    """Detailed profits screen (password protected)"""
+    if not session.get('profit_verified'):
+        return redirect(url_for('profits'))
+    
+    try:
+        # Calculate detailed profit information
+        current_month = datetime.now().month
+        current_year = datetime.now().year
+        
+        # Get all sales profit (filtered by user)
+        total_sales_profit = db.session.query(db.func.sum(Sale.profit)).filter(
+            Sale.user_id == current_user.id
+        ).scalar() or 0
+        
+        # Get monthly sales profit (filtered by user)
+        monthly_sales_profit = db.session.query(db.func.sum(Sale.profit)).filter(
+            Sale.user_id == current_user.id,
+            db.extract('month', Sale.date) == current_month,
+            db.extract('year', Sale.date) == current_year
+        ).scalar() or 0
+        
+        # Get incentives (filtered by user)
+        total_incentives = db.session.query(db.func.sum(Incentive.amount)).filter(
+            Incentive.user_id == current_user.id
+        ).scalar() or 0
+        monthly_incentives = db.session.query(db.func.sum(Incentive.amount)).filter(
+            Incentive.user_id == current_user.id,
+            Incentive.month == current_month,
+            Incentive.year == current_year
+        ).scalar() or 0
+        
+        # Calculate total profits
+        total_profit_with_incentives = total_sales_profit + total_incentives
+        monthly_profit_with_incentives = monthly_sales_profit + monthly_incentives
+        
+        # Get profit breakdown by brand
+        brand_profits = db.session.query(
+            Brand.name,
+            db.func.sum(Sale.profit).label('total_profit'),
+            db.func.count(Sale.id).label('total_sales')
+        ).join(Sale).filter(
+            Sale.user_id == current_user.id
+        ).group_by(Brand.name).all()
+        
+        # Get profit breakdown by month
+        monthly_breakdown = db.session.query(
+            db.extract('month', Sale.date).label('month'),
+            db.extract('year', Sale.date).label('year'),
+            db.func.sum(Sale.profit).label('profit')
+        ).filter(
+            Sale.user_id == current_user.id
+        ).group_by(
+            db.extract('month', Sale.date),
+            db.extract('year', Sale.date)
+        ).order_by(
+            db.extract('year', Sale.date).desc(),
+            db.extract('month', Sale.date).desc()
+        ).limit(12).all()
+        
+        return render_template('profits_detailed.html',
+                             total_profit=total_profit_with_incentives,
+                             monthly_profit=monthly_profit_with_incentives,
+                             total_sales_profit=total_sales_profit,
+                             monthly_sales_profit=monthly_sales_profit,
+                             total_incentives=total_incentives,
+                             monthly_incentives=monthly_incentives,
+                             brand_profits=brand_profits,
+                             monthly_breakdown=monthly_breakdown)
+    except Exception as e:
+        flash(f'Error loading profits: {str(e)}', 'error')
+        return redirect(url_for('profits'))
+
+@app.route('/transactions')
+@login_required
+def transactions():
+    """Transactions history - sales and purchases without profit details"""
+    try:
+        # Get all sales (filtered by user, no profit info)
+        sales = Sale.query.filter_by(user_id=current_user.id).order_by(Sale.date.desc()).all()
+        
+        # Get all purchases (filtered by user)
+        purchases = Purchase.query.filter_by(user_id=current_user.id).order_by(Purchase.date.desc()).all()
+        
+        return render_template('transactions.html', sales=sales, purchases=purchases)
+    except Exception as e:
+        flash(f'Error loading transactions: {str(e)}', 'error')
+        return redirect(url_for('dashboard'))
+
+@app.route('/search_device')
+@login_required
+def search_device():
+    """Search device by IMEI (shows all history)"""
+    return render_template('search_device.html')
+
+@app.route('/search_device_result', methods=['GET', 'POST'])
+@login_required
+def search_device_result():
+    """Search result for device by IMEI"""
+    try:
+        # Get IMEI from either GET or POST request
+        if request.method == 'POST':
+            imei = request.form.get('imei')
+        else:
+            imei = request.args.get('imei')
+        
+        if not imei:
+            flash('Please enter an IMEI number', 'error')
+            return redirect(url_for('search_device'))
+        
+        # Clean IMEI - remove any whitespace or special characters
+        imei = imei.strip()
+        
+        # Validate IMEI format (9-15 digits)
+        if not imei.isdigit() or len(imei) < 9 or len(imei) > 15:
+            flash('IMEI must be 9-15 digits', 'error')
+            return redirect(url_for('search_device'))
+        
+        print(f"Searching for IMEI: {imei}")  # Debug log
+        
+        # Find the purchase containing this IMEI
+        purchases = Purchase.query.filter_by(user_id=current_user.id).all()
+        print(f"Found {len(purchases)} purchases for user {current_user.id}")  # Debug log
+        
+        found_purchase = None
+        found_imei_index = -1
+        
+        for purchase in purchases:
+            try:
+                imei_list = json.loads(purchase.imei_numbers)
+                print(f"Purchase {purchase.id} has {len(imei_list)} IMEIs: {imei_list[:3]}...")  # Debug log
+                
+                if imei in imei_list:
+                    found_purchase = purchase
+                    found_imei_index = imei_list.index(imei)
+                    print(f"Found IMEI {imei} in purchase {purchase.id} at index {found_imei_index}")  # Debug log
+                    break
+            except (json.JSONDecodeError, TypeError) as e:
+                # Handle corrupted IMEI data
+                print(f"Error parsing IMEI data for purchase {purchase.id}: {e}")
+                continue
+        
+        if not found_purchase:
+            # Try to find similar IMEIs for better user feedback
+            similar_imeis = []
+            for purchase in purchases:
+                try:
+                    imei_list = json.loads(purchase.imei_numbers)
+                    for stored_imei in imei_list:
+                        if stored_imei.startswith(imei[:5]) or stored_imei.endswith(imei[-5:]):
+                            similar_imeis.append(stored_imei)
+                except:
+                    continue
+            
+            if similar_imeis:
+                flash(f'IMEI {imei} not found! Similar IMEIs in your inventory: {", ".join(similar_imeis[:3])}', 'error')
+            else:
+                flash(f'IMEI {imei} not found in your inventory!', 'error')
+            return redirect(url_for('search_device'))
+        
+        # Check if sold
+        existing_sale = Sale.query.filter_by(
+            imei_number=imei,
+            user_id=current_user.id
+        ).first()
+        
+        print(f"Sale found for IMEI {imei}: {existing_sale.id if existing_sale else 'None'}")  # Debug log
+        
+        # Get supplier info if available
+        supplier = None
+        if found_purchase.supplier_id:
+            supplier = Supplier.query.get(found_purchase.supplier_id)
+        
+        # Get model and brand info safely
+        model = None
+        brand = None
+        if found_purchase.model_id:
+            model = Model.query.get(found_purchase.model_id)
+            if model and model.brand_id:
+                brand = Brand.query.get(model.brand_id)
+        
+        print(f"Rendering template with: purchase={found_purchase.id}, model={model.name if model else 'None'}, brand={brand.name if brand else 'None'}")  # Debug log
+        
+        return render_template('search_device_result.html',
+                             purchase=found_purchase,
+                             imei=imei,
+                             imei_index=found_imei_index,
+                             sale=existing_sale,
+                             supplier=supplier,
+                             model=model,
+                             brand=brand)
+                             
+    except Exception as e:
+        print(f"Error in search_device_result: {e}")
+        import traceback
+        traceback.print_exc()  # Print full stack trace
+        flash(f'Error searching for device: {str(e)}. Please try again.', 'error')
+        return redirect(url_for('search_device'))
+
+@app.route('/add_supplier', methods=['POST'])
+@login_required
+def add_supplier():
+    """Add new supplier"""
+    name = request.form.get('name')
+    contact_info = request.form.get('contact_info')
+    address = request.form.get('address')
+    
+    if name:
+        supplier = Supplier(
+            name=name,
+            contact_info=contact_info,
+            address=address
+        )
+        db.session.add(supplier)
+        db.session.commit()
+        flash('Supplier added successfully!', 'success')
+    
+    return redirect(url_for('new_purchase', model_id=request.form.get('model_id')))
+
+@app.route('/get_suppliers')
+@login_required
+def get_suppliers():
+    """Get suppliers for dropdown"""
+    suppliers = Supplier.query.all()
+    return jsonify([{'id': s.id, 'name': s.name} for s in suppliers])
+
+@app.route('/validate_imei', methods=['POST'])
+@login_required
+def validate_imei():
+    """Validate IMEI - check if it can be added"""
+    imei = request.form.get('imei')
+    inventory_type = request.form.get('inventory_type')
+    
+    if not imei:
+        return jsonify({'valid': False, 'message': 'IMEI is required'})
+    
+    # Validate IMEI format (9-15 digits)
+    if not imei.isdigit() or len(imei) < 9 or len(imei) > 15:
+        return jsonify({'valid': False, 'message': 'IMEI must be 9-15 digits'})
+    
+    # Check if IMEI already exists in purchases
+    purchases = Purchase.query.filter_by(user_id=current_user.id).all()
+    for purchase in purchases:
+        imei_list = json.loads(purchase.imei_numbers)
+        if imei in imei_list:
+            # Check if it was sold
+            existing_sale = Sale.query.filter_by(
+                imei_number=imei,
+                user_id=current_user.id
+            ).first()
+            
+            if existing_sale:
+                # IMEI was sold, can be bought again
+                return jsonify({
+                    'valid': True, 
+                    'message': 'IMEI was previously sold, can be purchased again',
+                    'was_sold': True
+                })
+            else:
+                # IMEI exists and not sold
+                return jsonify({
+                    'valid': False, 
+                    'message': 'IMEI already exists in inventory and has not been sold',
+                    'was_sold': False
+                })
+    
+    # IMEI is new
+    return jsonify({'valid': True, 'message': 'IMEI is new and can be added'})
+
+@app.route('/generate_bill_number')
+@login_required
+def generate_bill_number():
+    """Generate unique bill number"""
+    bill_number = f"BILL-{datetime.now().strftime('%Y%m%d')}-{Sale.query.count() + 1:04d}"
+    return jsonify({'bill_number': bill_number})
 
 @app.route('/bill/<int:sale_id>')
 @login_required
-def generate_bill(sale_id):
+def bill(sale_id):
     """Generate bill for sale"""
     sale = Sale.query.filter_by(id=sale_id, user_id=current_user.id).first_or_404()
     return render_template('bill.html', sale=sale)
@@ -427,6 +783,9 @@ def generate_bill(sale_id):
 @login_required
 def internal_report(sale_id):
     """Internal report with profit details for business analysis"""
+    # Require profit verification
+    if not session.get('profit_verified'):
+        return redirect(url_for('profits'))
     sale = Sale.query.filter_by(id=sale_id, user_id=current_user.id).first_or_404()
     return render_template('internal_report.html', sale=sale)
 
@@ -669,6 +1028,9 @@ def add_incentive():
 @login_required
 def shop_ledger():
     """Shop ledger with all transactions"""
+    # Require profit verification since ledger shows profit totals
+    if not session.get('profit_verified'):
+        return redirect(url_for('profits'))
     brand_filter = request.args.get('brand')
     model_filter = request.args.get('model')
     
@@ -712,6 +1074,9 @@ def shop_ledger():
 @login_required
 def export_report():
     """Generate and export PDF report"""
+    # Require profit verification
+    if not session.get('profit_verified'):
+        return redirect(url_for('profits'))
     # Create PDF
     pdf = FPDF()
     pdf.add_page()
@@ -815,8 +1180,65 @@ def signup():
 @app.route('/logout')
 @login_required
 def logout():
+    # Clear profit verification session
+    session.pop('profit_verified', None)
     logout_user()
     return redirect(url_for('login'))
+
+@app.route('/inventory')
+@login_required
+def inventory():
+    """Show all inventory items with complete details"""
+    try:
+        # Get all purchases for current user
+        purchases = Purchase.query.filter_by(user_id=current_user.id).order_by(Purchase.date.desc()).all()
+        
+        # Process each purchase to get detailed information
+        inventory_items = []
+        for purchase in purchases:
+            try:
+                imei_list = json.loads(purchase.imei_numbers)
+                
+                # Get model and brand info
+                model = Model.query.get(purchase.model_id) if purchase.model_id else None
+                brand = Brand.query.get(model.brand_id) if model and model.brand_id else None
+                
+                # Get supplier info
+                supplier = Supplier.query.get(purchase.supplier_id) if purchase.supplier_id else None
+                
+                # Check status for each IMEI
+                for imei in imei_list:
+                    # Check if sold
+                    sale = Sale.query.filter_by(
+                        imei_number=imei,
+                        user_id=current_user.id
+                    ).first()
+                    
+                    inventory_items.append({
+                        'imei': imei,
+                        'purchase': purchase,
+                        'model': model,
+                        'brand': brand,
+                        'supplier': supplier,
+                        'sale': sale,
+                        'status': 'Sold' if sale else 'Available',
+                        'purchase_date': purchase.date,
+                        'sale_date': sale.date if sale else None,
+                        'profit': sale.profit if sale else None
+                    })
+            except (json.JSONDecodeError, TypeError) as e:
+                print(f"Error processing purchase {purchase.id}: {e}")
+                continue
+        
+        # Sort by purchase date (newest first)
+        inventory_items.sort(key=lambda x: x['purchase_date'], reverse=True)
+        
+        return render_template('inventory.html', inventory_items=inventory_items)
+        
+    except Exception as e:
+        print(f"Error in inventory route: {e}")
+        flash('Error loading inventory. Please try again.', 'error')
+        return redirect(url_for('dashboard'))
 
 if __name__ == '__main__':
     with app.app_context():

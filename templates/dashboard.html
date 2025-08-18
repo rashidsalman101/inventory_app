@@ -1,152 +1,304 @@
 {% extends "base.html" %}
-
 {% block title %}Dashboard - Mobile Shop Manager{% endblock %}
 
-{% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 style="font-weight:700;">Welcome back, {{ current_user.name.split(' ')[0] }}</h2>
-    <div>
-        <a href="{{ url_for('export_report') }}" class="btn btn-success">
-            <i class="fas fa-file-pdf me-2"></i>Export Report
-        </a>
-    </div>
-</div>
-
-<!-- Profit Summary Cards -->
-<div class="summary-cards">
-    <div class="summary-card">
-        <p>Total Profit (Including Incentives)</p>
-        <h2>PKR {{ "{:,}".format(total_profit) }}</h2>
-    </div>
-    <div class="summary-card">
-        <p>Monthly Profit (Including Incentives)</p>
-        <h2>PKR {{ "{:,}".format(monthly_profit) }}</h2>
-    </div>
-    <div class="summary-card">
-        <p>Sales Profit Only</p>
-        <h2>PKR {{ "{:,}".format(total_sales_profit) }}</h2>
-    </div>
-    <div class="summary-card">
-        <p>Total Incentives</p>
-        <h2>PKR {{ "{:,}".format(total_incentives) }}</h2>
-    </div>
-</div>
-
-<!-- Inventory Stats -->
-<div class="row mb-4">
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-body text-center">
-                <i class="fas fa-mobile-alt fa-2x text-primary mb-3"></i>
-                <h4>{{ total_devices_purchased }}</h4>
-                <p class="text-muted">Total Devices Purchased</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-body text-center">
-                <i class="fas fa-shopping-cart fa-2x text-success mb-3"></i>
-                <h4>{{ total_devices_sold }}</h4>
-                <p class="text-muted">Total Devices Sold</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-body text-center">
-                <i class="fas fa-warehouse fa-2x text-warning mb-3"></i>
-                <h4>{{ available_devices }}</h4>
-                <p class="text-muted">Available Devices</p>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Recent Activity -->
-<div class="row">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h5><i class="fas fa-shopping-cart me-2"></i>Recent Sales</h5>
-            </div>
-            <div class="card-body">
-                {% if recent_sales %}
-                    {% for sale in recent_sales %}
-                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
-                        <div>
-                            <strong>{{ sale.model.brand.name }} {{ sale.model.name }}</strong><br>
-                            <small class="text-muted">IMEI: {{ sale.imei_number }}</small><br>
-                            <small class="text-muted">{{ sale.date.strftime('%Y-%m-%d %H:%M') }}</small>
-                        </div>
-                        <div class="text-end">
-                            <span class="badge bg-success">+PKR {{ "{:,.2f}".format(sale.profit) }}</span><br>
-                            <small class="text-muted">{{ sale.inventory_type.title() }}</small>
-                        </div>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                    <p class="text-muted">No recent sales</p>
-                {% endif %}
-            </div>
-        </div>
-    </div>
+{% block extra_css %}
+<style>
+    .quick-action-btn {
+        transition: all 0.3s ease;
+        text-decoration: none;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
     
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h5><i class="fas fa-plus-circle me-2"></i>Recent Purchases</h5>
+    .quick-action-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        text-decoration: none;
+    }
+    
+    .quick-action-btn i {
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+    }
+    
+    .quick-action-btn span {
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    }
+    
+    .tool-btn {
+        transition: all 0.3s ease;
+        border-radius: 8px;
+        font-weight: 500;
+    }
+    
+    .tool-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+    
+    .summary-card {
+        border-radius: 15px;
+        border: none;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        transition: all 0.3s ease;
+        overflow: hidden;
+    }
+    
+    .summary-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 35px rgba(0, 0, 0, 0.2);
+    }
+    
+    .summary-card .card-body {
+        padding: 1.5rem;
+    }
+    
+    .summary-card h4 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+    
+    .summary-card p {
+        font-size: 1.1rem;
+        font-weight: 500;
+        margin-bottom: 0;
+        opacity: 0.95;
+    }
+    
+    .summary-card i {
+        filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.3));
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="mb-0">
+                <i class="fas fa-tachometer-alt text-primary me-2"></i>
+                Dashboard
+            </h1>
+            <p class="text-muted">Welcome back! Here's your inventory overview.</p>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card text-white h-100 summary-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                <div class="card-body text-center">
+                    <i class="fas fa-boxes fa-2x mb-2 text-white"></i>
+                    <h4 class="mb-1 text-white fw-bold">{{ total_devices_purchased }}</h4>
+                    <p class="mb-0 text-white">Total Purchased</p>
+                </div>
             </div>
-            <div class="card-body">
-                {% if recent_purchases %}
-                    {% for purchase in recent_purchases %}
-                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
-                        <div>
-                            <strong>{{ purchase.model.brand.name }} {{ purchase.model.name }}</strong><br>
-                            <small class="text-muted">Qty: {{ purchase.quantity }} devices</small><br>
-                            <small class="text-muted">{{ purchase.date.strftime('%Y-%m-%d %H:%M') }}</small>
-                        </div>
-                        <div class="text-end">
-                            <span class="badge bg-primary">PKR {{ "{:,.2f}".format(purchase.purchase_price) }}</span><br>
-                            <small class="text-muted">{{ purchase.inventory_type.title() }}</small>
-                        </div>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                    <p class="text-muted">No recent purchases</p>
-                {% endif %}
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white h-100 summary-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                <div class="card-body text-center">
+                    <i class="fas fa-shopping-cart fa-2x mb-2 text-white"></i>
+                    <h4 class="mb-1 text-white fw-bold">{{ total_devices_sold }}</h4>
+                    <p class="mb-0 text-white">Total Sold</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white h-100 summary-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                <div class="card-body text-center">
+                    <i class="fas fa-mobile-alt fa-2x mb-2 text-white"></i>
+                    <h4 class="mb-1 text-white fw-bold">{{ available_devices }}</h4>
+                    <p class="mb-0 text-white">Available Devices</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white h-100 summary-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                <div class="card-body text-center">
+                    <i class="fas fa-chart-line fa-2x mb-2 text-white"></i>
+                    <h4 class="mb-1 text-white fw-bold">View Profits</h4>
+                    <p class="mb-0 text-white">(Password Protected)</p>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
-<!-- Quick Actions -->
-<div class="row mt-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h5><i class="fas fa-bolt me-2"></i>Quick Actions</h5>
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-bolt me-2"></i>
+                        Quick Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-2 col-lg-2">
+                            <a href="{{ url_for('inventory') }}" class="btn btn-outline-primary w-100 h-100 d-flex flex-column align-items-center justify-content-center py-3 quick-action-btn" style="background-color: #6f42c1; border-color: #6f42c1; color: white;">
+                                <i class="fas fa-boxes fa-2x mb-2" style="color: white;"></i>
+                                <span style="color: white; font-weight: bold; font-size: 0.9rem;">View Inventory</span>
+                            </a>
+                        </div>
+                        <div class="col-md-2 col-lg-2">
+                            <a href="{{ url_for('inventory_type') }}" class="btn btn-primary w-100 h-100 d-flex flex-column align-items-center justify-content-center py-3 quick-action-btn" style="background-color: #0d6efd; border-color: #0d6efd; color: white;">
+                                <i class="fas fa-plus-circle fa-2x mb-2" style="color: white;"></i>
+                                <span style="color: white; font-weight: bold; font-size: 0.9rem;">New Purchase</span>
+                            </a>
+                        </div>
+                        <div class="col-md-2 col-lg-2">
+                            <a href="{{ url_for('sale_module') }}" class="btn btn-success w-100 h-100 d-flex flex-column align-items-center justify-content-center py-3 quick-action-btn" style="background-color: #198754; border-color: #198754; color: white;">
+                                <i class="fas fa-shopping-cart fa-2x mb-2" style="color: white;"></i>
+                                <span style="color: white; font-weight: bold; font-size: 0.9rem;">Make Sale</span>
+                            </a>
+                        </div>
+                        <div class="col-md-3 col-lg-3">
+                            <a href="{{ url_for('profits') }}" class="btn btn-warning w-100 h-100 d-flex flex-column align-items-center justify-content-center py-3 quick-action-btn" style="background-color: #fd7e14; border-color: #fd7e14; color: white;">
+                                <i class="fas fa-chart-line fa-2x mb-2" style="color: white;"></i>
+                                <span style="color: white; font-weight: bold; font-size: 0.9rem;">View Profits</span>
+                                <small style="color: white; font-weight: bold; font-size: 0.8rem;">(Protected)</small>
+                            </a>
+                        </div>
+                        <div class="col-md-3 col-lg-3">
+                            <a href="{{ url_for('transactions') }}" class="btn btn-info w-100 h-100 d-flex flex-column align-items-center justify-content-center py-3 quick-action-btn" style="background-color: #0dcaf0; border-color: #0dcaf0; color: white;">
+                                <i class="fas fa-history fa-2x mb-2" style="color: white;"></i>
+                                <span style="color: white; font-weight: bold; font-size: 0.9rem;">View Ledger</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-3 mb-2">
-                        <a href="{{ url_for('inventory_type') }}" class="btn btn-primary w-100">
-                            <i class="fas fa-plus me-2"></i>New Purchase
-                        </a>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="row">
+        <!-- Recent Sales -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-shopping-cart me-2"></i>
+                        Recent Sales
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_sales %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Device</th>
+                                    <th>Price</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for sale in recent_sales %}
+                                <tr>
+                                    <td>{{ sale.date.strftime('%d/%m') }}</td>
+                                    <td>
+                                        <small>{{ sale.model.brand.name }} {{ sale.model.name }}</small>
+                                    </td>
+                                    <td class="text-success">PKR {{ "{:,}".format(sale.sale_price) }}</td>
+                                    <td>
+                                        {% if sale.payment_status == 'paid' %}
+                                            <span class="badge bg-success">Paid</span>
+                                        {% elif sale.payment_status == 'partial' %}
+                                            <span class="badge bg-warning">Partial</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Pending</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
-                    <div class="col-md-3 mb-2">
-                        <a href="{{ url_for('sale_module') }}" class="btn btn-success w-100">
-                            <i class="fas fa-shopping-cart me-2"></i>Make Sale
-                        </a>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-shopping-cart text-muted" style="font-size: 2rem;"></i>
+                        <p class="text-muted mt-2">No recent sales</p>
                     </div>
-                    <div class="col-md-3 mb-2">
-                        <a href="{{ url_for('incentives') }}" class="btn btn-warning w-100">
-                            <i class="fas fa-gift me-2"></i>Add Incentive
-                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Purchases -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-shopping-bag me-2"></i>
+                        Recent Purchases
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_purchases %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Device</th>
+                                    <th>Qty</th>
+                                    <th>Price</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for purchase in recent_purchases %}
+                                <tr>
+                                    <td>{{ purchase.date.strftime('%d/%m') }}</td>
+                                    <td>
+                                        <small>{{ purchase.model.brand.name }} {{ purchase.model.name }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ purchase.quantity }}</span>
+                                    </td>
+                                    <td class="text-danger">PKR {{ "{:,}".format(purchase.purchase_price) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
-                    <div class="col-md-3 mb-2">
-                        <a href="{{ url_for('shop_ledger') }}" class="btn btn-info w-100">
-                            <i class="fas fa-book me-2"></i>View Ledger
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-shopping-bag text-muted" style="font-size: 2rem;"></i>
+                        <p class="text-muted mt-2">No recent purchases</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Additional Tools -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card bg-light">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-3">Additional Tools</h6>
+                    <div class="d-flex justify-content-center gap-2 flex-wrap">
+                        <a href="{{ url_for('search_device') }}" class="btn btn-outline-primary tool-btn" style="color: #0d6efd; border-color: #0d6efd; background-color: white;">
+                            <i class="fas fa-search me-2"></i>
+                            Search Device by IMEI
+                        </a>
+                        <a href="{{ url_for('brands') }}" class="btn btn-outline-info tool-btn" style="color: #0dcaf0; border-color: #0dcaf0; background-color: white;">
+                            <i class="fas fa-tags me-2"></i>
+                            Manage Brands & Models
+                        </a>
+                        <a href="{{ url_for('shops') }}" class="btn btn-outline-success tool-btn" style="color: #198754; border-color: #198754; background-color: white;">
+                            <i class="fas fa-store me-2"></i>
+                            Manage Shops
+                        </a>
+                        <a href="{{ url_for('incentives') }}" class="btn btn-outline-warning tool-btn" style="color: #fd7e14; border-color: #fd7e14; background-color: white;">
+                            <i class="fas fa-gift me-2"></i>
+                            Manage Incentives
                         </a>
                     </div>
                 </div>

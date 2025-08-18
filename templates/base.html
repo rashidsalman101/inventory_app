@@ -28,38 +28,72 @@
             <h5>{{ current_user.name }}</h5>
             <p>{{ current_user.email }}</p>
         </div>
-        <nav class="nav flex-column">
-            <a href="{{ url_for('dashboard') }}" class="nav-link{% if request.endpoint == 'dashboard' %} active{% endif %}">
-                <i class="fas fa-tachometer-alt me-2"></i>
-                <span>Dashboard</span>
-            </a>
-            <a href="{{ url_for('inventory_type') }}" class="nav-link{% if request.endpoint == 'inventory_type' %} active{% endif %}">
-                <i class="fas fa-mobile-alt me-2"></i>
-                <span>New Purchase</span>
-            </a>
-            <a href="{{ url_for('sale_module') }}" class="nav-link{% if request.endpoint == 'sale_module' %} active{% endif %}">
-                <i class="fas fa-shopping-cart me-2"></i>
-                <span>Sale Module</span>
-            </a>
-            <a href="{{ url_for('shops') }}" class="nav-link{% if request.endpoint == 'shops' %} active{% endif %}">
-                <i class="fas fa-store me-2"></i>
-                <span>Shops</span>
-            </a>
-            <a href="{{ url_for('pending_payments') }}" class="nav-link{% if request.endpoint == 'pending_payments' %} active{% endif %}">
-                <i class="fas fa-clock me-2"></i>
-                <span>Pending Payments</span>
-            </a>
-            <a href="{{ url_for('incentives') }}" class="nav-link{% if request.endpoint == 'incentives' %} active{% endif %}">
-                <i class="fas fa-gift me-2"></i>
-                <span>Incentives</span>
-            </a>
+        <nav class="sidebar-nav">
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('dashboard') }}">
+                        <i class="fas fa-tachometer-alt me-2"></i>
+                        Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('inventory') }}">
+                        <i class="fas fa-boxes me-2"></i>
+                        Complete Inventory
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('inventory_type') }}">
+                        <i class="fas fa-plus me-2"></i>
+                        New Purchase
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('sale_module') }}">
+                        <i class="fas fa-shopping-cart me-2"></i>
+                        <span>Make Sale</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('transactions') }}">
+                        <i class="fas fa-history me-2"></i>
+                        <span>Transactions</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('search_device') }}">
+                        <i class="fas fa-search me-2"></i>
+                        <span>Search Device</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('profits') }}">
+                        <i class="fas fa-chart-line me-2"></i>
+                        <span>Profits</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('brands') }}">
+                        <i class="fas fa-tags me-2"></i>
+                        <span>Brands & Models</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('shops') }}">
+                        <i class="fas fa-store me-2"></i>
+                        <span>Shops</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('incentives') }}">
+                        <i class="fas fa-gift me-2"></i>
+                        <span>Incentives</span>
+                    </a>
+                </li>
+            </ul>
             <a href="{{ url_for('shop_ledger') }}" class="nav-link{% if request.endpoint == 'shop_ledger' %} active{% endif %}">
                 <i class="fas fa-book me-2"></i>
                 <span>Shop Ledger</span>
-            </a>
-            <a href="{{ url_for('brands') }}" class="nav-link{% if request.endpoint == 'brands' %} active{% endif %}">
-                <i class="fas fa-tag me-2"></i>
-                <span>Brands & Models</span>
             </a>
             <a href="{{ url_for('export_report') }}" class="nav-link">
                 <i class="fas fa-file-pdf me-2"></i>

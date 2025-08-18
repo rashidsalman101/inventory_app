@@ -5,7 +5,7 @@ Run this script to create all database tables and add initial data.
 """
 
 from app import app, db
-from app import User, Brand, Model, Purchase, Sale, Shop, Payment, Incentive
+from app import User, Brand, Model, Purchase, Sale, Shop, Payment, Incentive, Supplier
 from werkzeug.security import generate_password_hash
 from datetime import datetime
 import os
@@ -94,6 +94,47 @@ def create_tables():
                     db.session.add(model)
                     print(f"✓ Added sample model: {brand_name} {model_name}")
         
+        # Add some sample suppliers if they don't exist
+        sample_suppliers = [
+            {
+                'name': 'Tech Suppliers Pakistan',
+                'contact_info': 'Phone: +92-300-1111111\nEmail: info@techsuppliers.pk',
+                'address': '123 Tech Street, Karachi, Pakistan'
+            },
+            {
+                'name': 'Mobile Importers Ltd',
+                'contact_info': 'Phone: +92-300-2222222\nEmail: sales@mobileimporters.pk',
+                'address': '456 Import Road, Lahore, Pakistan'
+            },
+            {
+                'name': 'Digital Devices Co',
+                'contact_info': 'Phone: +92-300-3333333\nEmail: contact@digitaldevices.pk',
+                'address': '789 Digital Avenue, Islamabad, Pakistan'
+            },
+            {
+                'name': 'Smart Phone Suppliers',
+                'contact_info': 'Phone: +92-300-4444444\nEmail: info@smartphonesuppliers.pk',
+                'address': '321 Smart Street, Rawalpindi, Pakistan'
+            },
+            {
+                'name': 'Electronics Hub',
+                'contact_info': 'Phone: +92-300-5555555\nEmail: sales@electronicshub.pk',
+                'address': '654 Electronics Road, Faisalabad, Pakistan'
+            }
+        ]
+        
+        for supplier_data in sample_suppliers:
+            existing_supplier = Supplier.query.filter_by(name=supplier_data['name']).first()
+            if not existing_supplier:
+                supplier = Supplier(
+                    name=supplier_data['name'],
+                    contact_info=supplier_data['contact_info'],
+                    address=supplier_data['address'],
+                    created_at=datetime.utcnow()
+                )
+                db.session.add(supplier)
+                print(f"✓ Added sample supplier: {supplier_data['name']}")
+        
         # Add some sample shops if they don't exist
         sample_shops = [
             {
@@ -152,6 +193,7 @@ def create_tables():
             print("\nSample data added:")
             print("- 10 Brands (Samsung, Apple, Xiaomi, etc.)")
             print("- 20 Models (Galaxy S21, iPhone 13, etc.)")
+            print("- 5 Suppliers (Tech Suppliers Pakistan, Mobile Importers Ltd, etc.)")
             print("- 5 Shops (Mobile World, Phone Store, etc.)")
             
         except Exception as e:

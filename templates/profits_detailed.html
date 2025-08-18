@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% block title %}Detailed Profits{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2 class="mb-0">
+                    <i class="fas fa-chart-line text-primary me-2"></i>
+                    Detailed Profits Analysis
+                </h2>
+                <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>
+                    Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-coins fa-2x mb-2"></i>
+                    <h4>PKR {{ "{:,}".format(total_profit) }}</h4>
+                    <p class="mb-0">Total Profit (Including Incentives)</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-calendar-alt fa-2x mb-2"></i>
+                    <h4>PKR {{ "{:,}".format(monthly_profit) }}</h4>
+                    <p class="mb-0">Monthly Profit (Including Incentives)</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-shopping-cart fa-2x mb-2"></i>
+                    <h4>PKR {{ "{:,}".format(total_sales_profit) }}</h4>
+                    <p class="mb-0">Total Sales Profit</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-gift fa-2x mb-2"></i>
+                    <h4>PKR {{ "{:,}".format(total_incentives) }}</h4>
+                    <p class="mb-0">Total Incentives</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Brand-wise Profits -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-tags me-2"></i>
+                        Profit Breakdown by Brand
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Brand</th>
+                                    <th>Total Sales</th>
+                                    <th>Total Profit</th>
+                                    <th>Average Profit per Sale</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for brand in brand_profits %}
+                                <tr>
+                                    <td>
+                                        <span class="badge bg-primary">{{ brand.name }}</span>
+                                    </td>
+                                    <td>{{ brand.total_sales }}</td>
+                                    <td class="text-success fw-bold">PKR {{ "{:,}".format(brand.total_profit) }}</td>
+                                    <td class="text-muted">PKR {{ "{:,}".format(brand.total_profit / brand.total_sales if brand.total_sales > 0 else 0) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monthly Breakdown -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-calendar-chart me-2"></i>
+                        Monthly Profit Breakdown
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Month/Year</th>
+                                    <th>Profit</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for month_data in monthly_breakdown %}
+                                <tr>
+                                    <td>
+                                        {% set month_names = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] %}
+                                        <span class="badge bg-secondary">{{ month_names[month_data.month] }} {{ month_data.year }}</span>
+                                    </td>
+                                    <td class="text-success fw-bold">PKR {{ "{:,}".format(month_data.profit) }}</td>
+                                    <td>
+                                        {% if month_data.profit > 0 %}
+                                            <span class="badge bg-success">Profit</span>
+                                        {% elif month_data.profit < 0 %}
+                                            <span class="badge bg-danger">Loss</span>
+                                        {% else %}
+                                            <span class="badge bg-warning">Break Even</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row">
+        <div class="col-12 text-center">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h6 class="text-muted mb-3">Quick Actions</h6>
+                    <div class="d-flex justify-content-center gap-2 flex-wrap">
+                        <a href="{{ url_for('transactions') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-list me-2"></i>
+                            View Transactions
+                        </a>
+                        <a href="{{ url_for('search_device') }}" class="btn btn-outline-info">
+                            <i class="fas fa-search me-2"></i>
+                            Search Device
+                        </a>
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-home me-2"></i>
+                            Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

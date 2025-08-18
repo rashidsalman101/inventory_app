@@ -3,140 +3,378 @@
 {% block title %}New Purchase - Mobile Shop Manager{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 style="font-weight:700;"><i class="fas fa-plus-circle me-2"></i>New Purchase</h2>
-    <a href="{{ url_for('brands') }}" class="btn btn-secondary">
-        <i class="fas fa-arrow-left me-2"></i>Back to Brands
-    </a>
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 style="font-weight:700;"><i class="fas fa-plus-circle me-2"></i>New Purchase</h2>
+        <a href="{{ url_for('brands') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Brands
+        </a>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-mobile-alt me-2"></i>{{ model.brand.name }} {{ model.name }}</h5>
+                </div>
+                <div class="card-body">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+                    
+                    <form method="POST" action="{{ url_for('add_purchase') }}" id="purchaseForm">
+                        <input type="hidden" name="model_id" value="{{ model.id }}">
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="inventory_type" class="form-label">Inventory Type</label>
+                                    <select class="form-control" id="inventory_type" name="inventory_type" required>
+                                        <option value="">Select Type</option>
+                                        <option value="new">New</option>
+                                        <option value="used">Used</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="quantity" class="form-label">Quantity</label>
+                                    <input type="number" class="form-control" id="quantity" name="quantity" 
+                                           min="1" max="100" required>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="purchase_price" class="form-label">Purchase Price (PKR per device)</label>
+                                    <input type="number" class="form-control" id="purchase_price" name="purchase_price" 
+                                           step="0.01" min="0" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="bill_number" class="form-label">Bill Number (Optional)</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="bill_number" name="bill_number" 
+                                               placeholder="Auto-generated if empty">
+                                        <button type="button" class="btn btn-outline-secondary" onclick="generateBillNumber()">
+                                            <i class="fas fa-magic"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="supplier_id" class="form-label">Supplier (Optional)</label>
+                                    <select class="form-control" id="supplier_id" name="supplier_id">
+                                        <option value="">Select Supplier</option>
+                                    </select>
+                                    <div class="form-text">
+                                        <a href="#" data-bs-toggle="modal" data-bs-target="#addSupplierModal">
+                                            <i class="fas fa-plus me-1"></i>Add New Supplier
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">IMEI Count</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="imei_count" readonly 
+                                               placeholder="Enter IMEIs below">
+                                        <span class="input-group-text">
+                                            <span id="imei_status" class="badge bg-secondary">0</span>
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="imei_numbers" class="form-label">IMEI Numbers</label>
+                            <textarea class="form-control" id="imei_numbers" name="imei_numbers" rows="6" 
+                                      placeholder="Enter IMEI numbers (one per line)&#10;Example:&#10;123456789012345&#10;123456789012346&#10;123456789012347" required></textarea>
+                            <div class="form-text">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Enter one IMEI number per line. The number of IMEIs must match the quantity.
+                                <br>
+                                <i class="fas fa-exclamation-triangle me-1 text-warning"></i>
+                                IMEI validation will check for duplicates and prevent adding existing devices.
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-success flex-fill" id="submitBtn">
+                                <i class="fas fa-save me-2"></i>Save Purchase
+                            </button>
+                            <button type="button" class="btn btn-outline-primary" onclick="scanIMEI()">
+                                <i class="fas fa-barcode me-2"></i>Scan IMEI
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
-<div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-header">
-                <h5><i class="fas fa-mobile-alt me-2"></i>{{ model.brand.name }} {{ model.name }}</h5>
+<!-- Add Supplier Modal -->
+<div class="modal fade" id="addSupplierModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add New Supplier</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="card-body">
-                {% with messages = get_flashed_messages(with_categories=true) %}
-                    {% if messages %}
-                        {% for category, message in messages %}
-                            <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show">
-                                {{ message }}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            </div>
-                        {% endfor %}
-                    {% endif %}
-                {% endwith %}
-                
-                <form method="POST" action="{{ url_for('add_purchase') }}">
-                    <input type="hidden" name="model_id" value="{{ model.id }}">
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="inventory_type" class="form-label">Inventory Type</label>
-                                <select class="form-control" id="inventory_type" name="inventory_type" required>
-                                    <option value="">Select Type</option>
-                                    <option value="new">New</option>
-                                    <option value="used">Used</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="quantity" class="form-label">Quantity</label>
-                                <input type="number" class="form-control" id="quantity" name="quantity" 
-                                       min="1" max="100" required>
-                            </div>
-                        </div>
-                    </div>
-                    
+            <div class="modal-body">
+                <form id="supplierForm">
                     <div class="mb-3">
-                        <label for="purchase_price" class="form-label">Purchase Price (PKR per device)</label>
-                        <input type="number" class="form-control" id="purchase_price" name="purchase_price" 
-                               step="0.01" min="0" required>
+                        <label for="supplier_name" class="form-label">Supplier Name</label>
+                        <input type="text" class="form-control" id="supplier_name" required>
                     </div>
-                    
-                    <div class="mb-4">
-                        <label for="imei_numbers" class="form-label">IMEI Numbers</label>
-                        <textarea class="form-control" id="imei_numbers" name="imei_numbers" rows="6" 
-                                  placeholder="Enter IMEI numbers (one per line)&#10;Example:&#10;123456789012345&#10;123456789012346&#10;123456789012347" required></textarea>
-                        <div class="form-text">
-                            Enter one IMEI number per line. The number of IMEIs must match the quantity.
-                        </div>
+                    <div class="mb-3">
+                        <label for="supplier_contact" class="form-label">Contact Information</label>
+                        <textarea class="form-control" id="supplier_contact" rows="3" placeholder="Phone, Email, etc."></textarea>
                     </div>
-                    
-                    <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-success flex-fill">
-                            <i class="fas fa-save me-2"></i>Save Purchase
-                        </button>
-                        <button type="button" class="btn btn-outline-primary" onclick="scanIMEI()">
-                            <i class="fas fa-barcode me-2"></i>Scan IMEI
-                        </button>
+                    <div class="mb-3">
+                        <label for="supplier_address" class="form-label">Address</label>
+                        <textarea class="form-control" id="supplier_address" rows="2"></textarea>
                     </div>
                 </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="addSupplier()">Add Supplier</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- IMEI Scanner Modal -->
+<div class="modal fade" id="imeiScannerModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-barcode me-2"></i>Scan IMEI</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">IMEI Number</label>
+                    <input type="text" class="form-control form-control-lg" id="scannerImeiInput" 
+                           placeholder="Scan IMEI using external barcode scanner or enter manually" autofocus>
+                </div>
+                <p class="text-muted">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Use your external barcode scanner to scan the IMEI, or enter it manually.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="addScannedImei()">Add IMEI</button>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-// Auto-set inventory type from session storage if available
+// Load suppliers on page load
 document.addEventListener('DOMContentLoaded', function() {
+    loadSuppliers();
+    
+    // Auto-set inventory type from session storage if available
     const inventoryType = sessionStorage.getItem('inventoryType');
     if (inventoryType) {
         document.getElementById('inventory_type').value = inventoryType;
     }
+    
+    // Set up IMEI validation
+    setupIMEIValidation();
 });
 
-// Update IMEI count display
-document.getElementById('quantity').addEventListener('input', function(e) {
-    const quantity = parseInt(e.target.value) || 0;
-    const textarea = document.getElementById('imei_numbers');
-    
-    if (quantity > 0) {
-        let placeholder = 'Enter IMEI numbers (one per line)\nExample:\n';
-        for (let i = 1; i <= Math.min(quantity, 3); i++) {
-            placeholder += `12345678901234${i}\n`;
-        }
-        if (quantity > 3) {
-            placeholder += '...';
-        }
-        textarea.placeholder = placeholder.trim();
-    }
-});
-
-// Validate IMEI count before submit
-document.querySelector('form').addEventListener('submit', function(e) {
-    const quantity = parseInt(document.getElementById('quantity').value) || 0;
-    const imeiText = document.getElementById('imei_numbers').value.trim();
-    const imeiCount = imeiText ? imeiText.split('\n').filter(line => line.trim()).length : 0;
-    
-    if (imeiCount !== quantity) {
-        e.preventDefault();
-        alert(`Number of IMEIs (${imeiCount}) must match quantity (${quantity})`);
-        return false;
-    }
-});
-
-function scanIMEI() {
-    const textarea = document.getElementById('imei_numbers');
-    textarea.focus();
-    
-    // Show scanner instructions
-    const alert = document.createElement('div');
-    alert.className = 'alert alert-info mt-3';
-    alert.innerHTML = '<i class="fas fa-barcode me-2"></i>Ready to scan! Use your barcode scanner to scan IMEIs directly into the text area.';
-    
-    const form = document.querySelector('form');
-    form.appendChild(alert);
-    
-    // Remove alert after 5 seconds
-    setTimeout(() => {
-        if (alert.parentNode) {
-            alert.remove();
-        }
-    }, 5000);
+// Load suppliers from backend
+function loadSuppliers() {
+    fetch('/get_suppliers')
+        .then(response => response.json())
+        .then(suppliers => {
+            const select = document.getElementById('supplier_id');
+            select.innerHTML = '<option value="">Select Supplier</option>';
+            suppliers.forEach(supplier => {
+                const option = document.createElement('option');
+                option.value = supplier.id;
+                option.textContent = supplier.name;
+                select.appendChild(option);
+            });
+        })
+        .catch(error => console.error('Error loading suppliers:', error));
 }
+
+// Generate bill number
+function generateBillNumber() {
+    fetch('/generate_bill_number')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('bill_number').value = data.bill_number;
+        })
+        .catch(error => console.error('Error generating bill number:', error));
+}
+
+// Setup IMEI validation
+function setupIMEIValidation() {
+    const imeiTextarea = document.getElementById('imei_numbers');
+    const quantityInput = document.getElementById('quantity');
+    const imeiCount = document.getElementById('imei_count');
+    const imeiStatus = document.getElementById('imei_status');
+    
+    function updateIMEICount() {
+        const imeis = imeiTextarea.value.split('\n').filter(imei => imei.trim());
+        const quantity = parseInt(quantityInput.value) || 0;
+        
+        imeiCount.value = `${imeis.length} / ${quantity}`;
+        
+        if (quantity === 0) {
+            imeiStatus.textContent = '0';
+            imeiStatus.className = 'badge bg-secondary';
+        } else if (imeis.length === quantity) {
+            imeiStatus.textContent = '✓';
+            imeiStatus.className = 'badge bg-success';
+        } else if (imeis.length > quantity) {
+            imeiStatus.textContent = '!';
+            imeiStatus.className = 'badge bg-warning';
+        } else {
+            imeiStatus.textContent = imeis.length;
+            imeiStatus.className = 'badge bg-info';
+        }
+    }
+    
+    imeiTextarea.addEventListener('input', updateIMEICount);
+    quantityInput.addEventListener('input', updateIMEICount);
+    
+    // Initial count
+    updateIMEICount();
+}
+
+// Add supplier
+function addSupplier() {
+    const name = document.getElementById('supplier_name').value;
+    const contact = document.getElementById('supplier_contact').value;
+    const address = document.getElementById('supplier_address').value;
+    
+    if (!name) {
+        alert('Supplier name is required');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('name', name);
+    formData.append('contact_info', contact);
+    formData.append('address', address);
+    formData.append('model_id', document.querySelector('input[name="model_id"]').value);
+    
+    fetch('/add_supplier', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        if (response.ok) {
+            // Reload suppliers and close modal
+            loadSuppliers();
+            bootstrap.Modal.getInstance(document.getElementById('addSupplierModal')).hide();
+            
+            // Clear form
+            document.getElementById('supplierForm').reset();
+            
+            // Show success message
+            const alert = document.createElement('div');
+            alert.className = 'alert alert-success alert-dismissible fade show';
+            alert.innerHTML = `
+                Supplier added successfully!
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.querySelector('.card-body').insertBefore(alert, document.querySelector('form'));
+        } else {
+            throw new Error('Failed to add supplier');
+        }
+    })
+    .catch(error => {
+        console.error('Error adding supplier:', error);
+        alert('Error adding supplier. Please try again.');
+    });
+}
+
+// Scan IMEI
+function scanIMEI() {
+    const modal = new bootstrap.Modal(document.getElementById('imeiScannerModal'));
+    modal.show();
+    document.getElementById('scannerImeiInput').focus();
+}
+
+// Add scanned IMEI
+function addScannedImei() {
+    const imeiInput = document.getElementById('scannerImeiInput');
+    const imei = imeiInput.value.trim();
+    
+    if (imei) {
+        const imeiTextarea = document.getElementById('imei_numbers');
+        if (imeiTextarea.value) {
+            imeiTextarea.value += '\n' + imei;
+        } else {
+            imeiTextarea.value = imei;
+        }
+        
+        // Close modal and clear input
+        bootstrap.Modal.getInstance(document.getElementById('imeiScannerModal')).hide();
+        imeiInput.value = '';
+        
+        // Update IMEI count
+        setupIMEIValidation();
+    }
+}
+
+// Handle Enter key in scanner input
+document.getElementById('scannerImeiInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        addScannedImei();
+    }
+});
+
+// Form validation before submit
+document.getElementById('purchaseForm').addEventListener('submit', function(e) {
+    const quantity = parseInt(document.getElementById('quantity').value) || 0;
+    const imeis = document.getElementById('imei_numbers').value.split('\n').filter(imei => imei.trim());
+    
+    if (imeis.length !== quantity) {
+        e.preventDefault();
+        alert(`Number of IMEIs (${imeis.length}) must match quantity (${quantity})`);
+        return;
+    }
+    
+    // Validate each IMEI
+    const invalidImeis = [];
+    imeis.forEach(imei => {
+        if (imei.length < 9 || imei.length > 15 || !/^\d+$/.test(imei)) {
+            invalidImeis.push(imei);
+        }
+    });
+    
+    if (invalidImeis.length > 0) {
+        e.preventDefault();
+        alert(`Invalid IMEI format: ${invalidImeis.join(', ')}\nIMEI must be 9-15 digits.`);
+        return;
+    }
+});
 </script>
 {% endblock %} 

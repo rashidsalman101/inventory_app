@@ -171,7 +171,13 @@
         <div class="card text-center">
             <div class="card-body">
                 <i class="fas fa-coins fa-2x text-warning mb-2"></i>
-                <h5>PKR {{ "{:,.2f}".format(total_sales_profit) }}</h5>
+                <h5>
+                    {% if session.get('profit_verified') %}
+                        PKR {{ "{:,.2f}".format(total_sales_profit) }}
+                    {% else %}
+                        Protected
+                    {% endif %}
+                </h5>
                 <p class="text-muted mb-0">Total Sales Profit</p>
             </div>
         </div>

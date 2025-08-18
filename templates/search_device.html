@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+{% block title %}Search Device by IMEI{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2 class="mb-0">
+                    <i class="fas fa-search text-primary me-2"></i>
+                    Search Device by IMEI
+                </h2>
+                <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>
+                    Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Form -->
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-primary text-white text-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-barcode me-2"></i>
+                        Enter IMEI Number
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    <form method="POST" action="{{ url_for('search_device_result') }}" id="searchForm">
+                        <div class="mb-4">
+                            <label for="imei" class="form-label fw-bold">IMEI Number</label>
+                            <div class="input-group input-group-lg">
+                                <span class="input-group-text">
+                                    <i class="fas fa-mobile-alt"></i>
+                                </span>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="imei" 
+                                       name="imei" 
+                                       required 
+                                       placeholder="Scan or enter IMEI number"
+                                       autofocus
+                                       pattern="[0-9]{9,15}"
+                                       title="IMEI must be 9-15 digits"
+                                       minlength="9"
+                                       maxlength="15">
+                            </div>
+                            <div class="form-text">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Use your external barcode scanner or enter the IMEI manually (9-15 digits)
+                            </div>
+                            <div id="imei-error" class="text-danger mt-2" style="display: none;">
+                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                <span id="error-message"></span>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-search me-2"></i>
+                                Search Device
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <div class="text-center mt-4">
+                        <div class="row g-3">
+                            <div class="col-6">
+                                <a href="{{ url_for('transactions') }}" class="btn btn-outline-info w-100">
+                                    <i class="fas fa-history me-2"></i>
+                                    View Transactions
+                                </a>
+                            </div>
+                            <div class="col-6">
+                                <a href="{{ url_for('profits') }}" class="btn btn-outline-success w-100">
+                                    <i class="fas fa-chart-line me-2"></i>
+                                    View Profits
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Tips -->
+    <div class="row mt-5">
+        <div class="col-12">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h6 class="text-muted mb-3">
+                        <i class="fas fa-lightbulb me-2"></i>
+                        Search Tips
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-start">
+                                <i class="fas fa-barcode text-primary me-2 mt-1"></i>
+                                <div>
+                                    <strong>External Scanner</strong>
+                                    <p class="text-muted small mb-0">Use your barcode scanner for quick IMEI input</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-start">
+                                <i class="fas fa-history text-info me-2 mt-1"></i>
+                                <div>
+                                    <strong>Complete History</strong>
+                                    <p class="text-muted small mb-0">View all device history including purchases and sales</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-start">
+                                <i class="fas fa-search text-success me-2 mt-1"></i>
+                                <div>
+                                    <strong>Find Any Device</strong>
+                                    <p class="text-muted small mb-0">Search for devices even if they were sold</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-focus on IMEI input when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('imei').focus();
+});
+
+// Handle external barcode scanner input
+document.getElementById('imei').addEventListener('input', function(e) {
+    // Remove any non-numeric characters
+    this.value = this.value.replace(/[^0-9]/g, '');
+    
+    // Hide any previous errors
+    document.getElementById('imei-error').style.display = 'none';
+    
+    // Validate IMEI length
+    const imeiLength = this.value.length;
+    if (imeiLength > 0 && imeiLength < 9) {
+        showError('IMEI must be at least 9 digits');
+    } else if (imeiLength > 15) {
+        showError('IMEI cannot exceed 15 digits');
+    } else if (imeiLength >= 9 && imeiLength <= 15) {
+        // Valid IMEI length - auto-submit if scanner input
+        setTimeout(() => {
+            if (this.value.length >= 9 && this.value.length <= 15) {
+                this.form.submit();
+            }
+        }, 100);
+    }
+});
+
+// Show error message
+function showError(message) {
+    const errorDiv = document.getElementById('imei-error');
+    const errorMessage = document.getElementById('error-message');
+    errorMessage.textContent = message;
+    errorDiv.style.display = 'block';
+}
+
+// Form validation before submit
+document.getElementById('searchForm').addEventListener('submit', function(e) {
+    const imei = document.getElementById('imei').value;
+    
+    if (!imei) {
+        e.preventDefault();
+        showError('Please enter an IMEI number');
+        return;
+    }
+    
+    if (imei.length < 9 || imei.length > 15) {
+        e.preventDefault();
+        showError('IMEI must be 9-15 digits');
+        return;
+    }
+    
+    if (!/^\d+$/.test(imei)) {
+        e.preventDefault();
+        showError('IMEI must contain only numbers');
+        return;
+    }
+    
+    // Hide error if validation passes
+    document.getElementById('imei-error').style.display = 'none';
+});
+</script>
+{% endblock %} 

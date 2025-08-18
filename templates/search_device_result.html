@@ -1,0 +1,311 @@
+{% extends "base.html" %}
+{% block title %}Device Search Result{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2 class="mb-0">
+                    <i class="fas fa-search text-primary me-2"></i>
+                    Device Search Result
+                </h2>
+                <div>
+                    <a href="{{ url_for('search_device') }}" class="btn btn-outline-primary me-2">
+                        <i class="fas fa-search me-2"></i>
+                        New Search
+                    </a>
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Device Information -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-mobile-alt me-2"></i>
+                        Device Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td class="fw-bold">IMEI Number:</td>
+                                    <td><code class="fs-5">{{ imei }}</code></td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Brand:</td>
+                                    <td>
+                                        {% if brand %}
+                                            <span class="badge bg-primary fs-6">{{ brand.name }}</span>
+                                        {% else %}
+                                            <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Model:</td>
+                                    <td>
+                                        {% if model %}
+                                            <span class="badge bg-info fs-6">{{ model.name }}</span>
+                                        {% else %}
+                                            <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Inventory Type:</td>
+                                    <td>
+                                        {% if purchase.inventory_type %}
+                                            <span class="badge bg-{{ 'success' if purchase.inventory_type == 'new' else 'warning' }} fs-6">
+                                                {{ purchase.inventory_type|title }}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td class="fw-bold">Purchase Date:</td>
+                                    <td>
+                                        {% if purchase.date %}
+                                            {{ purchase.date.strftime('%d/%m/%Y') }}
+                                        {% else %}
+                                            <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Purchase Price:</td>
+                                    <td class="text-danger fw-bold fs-6">
+                                        {% if purchase.purchase_price %}
+                                            PKR {{ "{:,}".format(purchase.purchase_price) }}
+                                        {% else %}
+                                            <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Bill Number:</td>
+                                    <td>
+                                        {% if purchase.bill_number %}
+                                            <span class="badge bg-secondary">{{ purchase.bill_number }}</span>
+                                        {% else %}
+                                            <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Status:</td>
+                                    <td>
+                                        {% if sale %}
+                                            <span class="badge bg-danger fs-6">Sold</span>
+                                        {% else %}
+                                            <span class="badge bg-success fs-6">Available</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Supplier Information -->
+    {% if supplier %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-truck me-2"></i>
+                        Supplier Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <strong>Supplier Name:</strong>
+                            <p class="mb-0">{{ supplier.name or 'N/A' }}</p>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Contact Info:</strong>
+                            <p class="mb-0">{{ supplier.contact_info or 'N/A' }}</p>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Address:</strong>
+                            <p class="mb-0">{{ supplier.address or 'N/A' }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Sale Information (if sold) -->
+    {% if sale %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-shopping-cart me-2"></i>
+                        Sale Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td class="fw-bold">Sale Date:</td>
+                                    <td>
+                                        {% if sale.date %}
+                                            {{ sale.date.strftime('%d/%m/%Y') }}
+                                        {% else %}
+                                            <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Sale Price:</td>
+                                    <td class="text-success fw-bold fs-6">
+                                        {% if sale.sale_price %}
+                                            PKR {{ "{:,}".format(sale.sale_price) }}
+                                        {% else %}
+                                            <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Profit:</td>
+                                    <td class="text-success fw-bold fs-6">
+                                        {% if session.get('profit_verified') and sale and sale.profit is not none %}
+                                            PKR {{ "{:,}".format(sale.profit) }}
+                                        {% else %}
+                                            <span class="text-muted">Protected</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Bill Number:</td>
+                                    <td>
+                                        {% if sale.bill_number %}
+                                            <span class="badge bg-secondary">{{ sale.bill_number }}</span>
+                                        {% else %}
+                                            <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td class="fw-bold">Customer Type:</td>
+                                    <td>
+                                        {% if sale.customer_type == 'individual' %}
+                                            <span class="badge bg-info">{{ sale.customer_type|title }}</span>
+                                        {% else %}
+                                            <span class="badge bg-warning">{{ sale.customer_type|title }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Customer:</td>
+                                    <td>
+                                        {% if sale.customer_type == 'individual' %}
+                                            {{ sale.customer_name or 'Individual Customer' }}
+                                        {% else %}
+                                            {{ sale.shop.name if sale.shop else 'Shop Customer' }}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Payment Status:</td>
+                                    <td>
+                                        {% if sale.payment_status == 'paid' %}
+                                            <span class="badge bg-success">Paid</span>
+                                        {% elif sale.payment_status == 'partial' %}
+                                            <span class="badge bg-warning">Partial</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Pending</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Due Date:</td>
+                                    <td>
+                                        {% if sale.due_date %}
+                                            {{ sale.due_date.strftime('%d/%m/%Y') }}
+                                        {% else %}
+                                            <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Quick Actions -->
+    <div class="row">
+        <div class="col-12 text-center">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h6 class="text-muted mb-3">Quick Actions</h6>
+                    <div class="d-flex justify-content-center gap-2 flex-wrap">
+                        {% if not sale %}
+                        <a href="{{ url_for('sale_module') }}" class="btn btn-success">
+                            <i class="fas fa-shopping-cart me-2"></i>
+                            Sell This Device
+                        </a>
+                        {% endif %}
+                        
+                        {% if sale %}
+                        <a href="{{ url_for('bill', sale_id=sale.id) }}" class="btn btn-primary">
+                            <i class="fas fa-file-invoice me-2"></i>
+                            View Sale Bill
+                        </a>
+                        <a href="{{ url_for('internal_report', sale_id=sale.id) }}" class="btn btn-info">
+                            <i class="fas fa-chart-line me-2"></i>
+                            Internal Report
+                        </a>
+                        {% endif %}
+                        
+                        <a href="{{ url_for('transactions') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-history me-2"></i>
+                            View All Transactions
+                        </a>
+                        <a href="{{ url_for('search_device') }}" class="btn btn-outline-info">
+                            <i class="fas fa-search me-2"></i>
+                            Search Another Device
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
