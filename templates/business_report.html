@@ -1,0 +1,557 @@
+{% extends "base.html" %}
+
+{% block title %}Business Report - {{ sale.bill_number or 'Sale' }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 style="font-weight:700;"><i class="fas fa-chart-line me-2"></i>Business Report</h2>
+    <div>
+        <a href="{{ url_for('bill', sale_id=sale.id) }}" class="btn btn-info">
+            <i class="fas fa-file-invoice me-2"></i>View Invoice
+        </a>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-primary">
+            <i class="fas fa-home me-2"></i>Dashboard
+        </a>
+        <button onclick="window.print()" class="btn btn-success">
+            <i class="fas fa-print me-2"></i>Print Report
+        </button>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="business-report-container">
+            <!-- Report Header -->
+            <div class="report-header">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="company-info">
+                            <h1 class="company-name">MOBILE SHOP</h1>
+                            <div class="company-details">
+                                <p><i class="fas fa-map-marker-alt me-2"></i>123 Main Street, City, Pakistan</p>
+                                <p><i class="fas fa-phone me-2"></i>+92-300-1234567</p>
+                                <p><i class="fas fa-envelope me-2"></i>info@mobileshop.com</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <div class="report-meta">
+                            <h3 class="report-title">BUSINESS REPORT</h3>
+                            <div class="report-number">
+                                <strong>Report #:</strong> {{ sale.bill_number or sale.id }}
+                            </div>
+                            <div class="report-date">
+                                <strong>Generated:</strong> {{ sale.date.strftime('%d %B %Y') }}
+                            </div>
+                            <div class="report-time">
+                                <strong>Time:</strong> {{ sale.date.strftime('%I:%M %p') }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <hr class="report-divider">
+
+            <!-- Transaction Summary -->
+            <div class="transaction-summary">
+                <h5 class="section-title">Transaction Summary</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="summary-card">
+                            <div class="summary-header">
+                                <i class="fas fa-info-circle"></i>
+                                <span>Transaction Details</span>
+                            </div>
+                            <div class="summary-content">
+                                <p><strong>Transaction ID:</strong> #{{ sale.id }}</p>
+                                <p><strong>Invoice Number:</strong> {{ sale.bill_number or 'N/A' }}</p>
+                                <p><strong>Date & Time:</strong> {{ sale.date.strftime('%d %B %Y, %I:%M %p') }}</p>
+                                <p><strong>Customer Type:</strong> {{ sale.customer_type|title }}</p>
+                                {% if sale.customer_type == 'individual' and sale.customer_name %}
+                                <p><strong>Customer Name:</strong> {{ sale.customer_name }}</p>
+                                {% elif sale.customer_type == 'shop' and sale.shop %}
+                                <p><strong>Shop Name:</strong> {{ sale.shop.name }}</p>
+                                <p><strong>Shop Owner:</strong> {{ sale.shop.owner_name }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="summary-card">
+                            <div class="summary-header">
+                                <i class="fas fa-mobile-alt"></i>
+                                <span>Device Information</span>
+                            </div>
+                            <div class="summary-content">
+                                <p><strong>Brand:</strong> {{ sale.model.brand.name }}</p>
+                                <p><strong>Model:</strong> {{ sale.model.name }}</p>
+                                <p><strong>Condition:</strong> {{ sale.inventory_type|upper }}</p>
+                                <p><strong>IMEI:</strong> {{ sale.imei_number }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <hr class="report-divider">
+
+            <!-- Financial Analysis -->
+            <div class="financial-analysis">
+                <h5 class="section-title">Financial Analysis</h5>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="financial-card purchase-card">
+                            <div class="financial-header">
+                                <i class="fas fa-shopping-bag"></i>
+                                <span>Purchase Cost</span>
+                            </div>
+                            <div class="financial-amount">
+                                PKR {{ "{:,.2f}".format(sale.purchase_price) }}
+                            </div>
+                            <div class="financial-label">Cost Price</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="financial-card sale-card">
+                            <div class="financial-header">
+                                <i class="fas fa-tags"></i>
+                                <span>Sale Revenue</span>
+                            </div>
+                            <div class="financial-amount">
+                                PKR {{ "{:,.2f}".format(sale.sale_price) }}
+                            </div>
+                            <div class="financial-label">Sale Price</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="financial-card profit-card">
+                            <div class="financial-header">
+                                <i class="fas fa-chart-line"></i>
+                                <span>Profit Margin</span>
+                            </div>
+                            <div class="financial-amount">
+                                PKR {{ "{:,.2f}".format(sale.profit) }}
+                            </div>
+                            <div class="financial-label">
+                                {% set profit_margin = ((sale.profit / sale.purchase_price) * 100) %}
+                                {{ "{:.1f}%".format(profit_margin) }} Margin
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <hr class="report-divider">
+
+            <!-- Payment Analysis -->
+            <div class="payment-analysis">
+                <h5 class="section-title">Payment Analysis</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="payment-card">
+                            <div class="payment-header">
+                                <i class="fas fa-credit-card"></i>
+                                <span>Payment Status</span>
+                            </div>
+                            <div class="payment-content">
+                                {% if sale.payment_status == 'paid' %}
+                                <div class="status-badge paid">
+                                    <i class="fas fa-check-circle"></i>
+                                    FULLY PAID
+                                </div>
+                                {% elif sale.payment_status == 'partial' %}
+                                <div class="status-badge partial">
+                                    <i class="fas fa-clock"></i>
+                                    PARTIAL PAYMENT
+                                </div>
+                                {% else %}
+                                <div class="status-badge pending">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    PENDING PAYMENT
+                                </div>
+                                {% endif %}
+                                
+                                <div class="payment-details">
+                                    <p><strong>Amount Paid:</strong> PKR {{ "{:,.2f}".format(sale.paid_amount) }}</p>
+                                    {% if sale.due_amount > 0 %}
+                                    <p><strong>Amount Due:</strong> PKR {{ "{:,.2f}".format(sale.due_amount) }}</p>
+                                    {% endif %}
+                                    {% if sale.due_date %}
+                                    <p><strong>Due Date:</strong> {{ sale.due_date.strftime('%d %B %Y') }}</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="payment-card">
+                            <div class="payment-header">
+                                <i class="fas fa-chart-pie"></i>
+                                <span>Payment Breakdown</span>
+                            </div>
+                            <div class="payment-content">
+                                <div class="payment-chart">
+                                    <div class="chart-item">
+                                                                            <div class="chart-bar paid-bar" id="paid-bar"></div>
+                                    <span class="chart-label" id="paid-label">Paid: 0%</span>
+                                </div>
+                                {% if sale.due_amount > 0 %}
+                                <div class="chart-item">
+                                    <div class="chart-bar due-bar" id="due-bar"></div>
+                                    <span class="chart-label" id="due-label">Due: 0%</span>
+                                </div>
+                                {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <hr class="report-divider">
+
+            <!-- Business Insights -->
+            <div class="business-insights">
+                <h5 class="section-title">Business Insights</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="insight-card">
+                            <div class="insight-header">
+                                <i class="fas fa-lightbulb"></i>
+                                <span>Performance Metrics</span>
+                            </div>
+                            <div class="insight-content">
+                                <div class="metric-item">
+                                    <span class="metric-label">Profit Margin:</span>
+                                    <span class="metric-value {{ 'text-success' if sale.profit > 0 else 'text-danger' }}">
+                                        {{ "{:.1f}%".format((sale.profit / sale.purchase_price) * 100) }}
+                                    </span>
+                                </div>
+                                <div class="metric-item">
+                                    <span class="metric-label">ROI:</span>
+                                    <span class="metric-value {{ 'text-success' if sale.profit > 0 else 'text-danger' }}">
+                                        {{ "{:.1f}%".format((sale.profit / sale.purchase_price) * 100) }}
+                                    </span>
+                                </div>
+                                <div class="metric-item">
+                                    <span class="metric-label">Markup:</span>
+                                    <span class="metric-value">
+                                        {{ "{:.1f}%".format(((sale.sale_price - sale.purchase_price) / sale.purchase_price) * 100) }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="insight-card">
+                            <div class="insight-header">
+                                <i class="fas fa-trending-up"></i>
+                                <span>Market Analysis</span>
+                            </div>
+                            <div class="insight-content">
+                                <div class="market-item">
+                                    <span class="market-label">Device Category:</span>
+                                    <span class="market-value">{{ sale.model.brand.name }}</span>
+                                </div>
+                                <div class="market-item">
+                                    <span class="market-label">Condition:</span>
+                                    <span class="market-value">{{ sale.inventory_type|title }}</span>
+                                </div>
+                                <div class="market-item">
+                                    <span class="market-label">Price Range:</span>
+                                    <span class="market-value">Standard</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="report-footer">
+                <div class="footer-message">
+                    <p><strong>This report is generated for business analysis purposes only.</strong></p>
+                    <p>For detailed financial statements, please consult your accountant.</p>
+                    <p class="generated-info">Report generated on {{ sale.date.strftime('%d %B %Y at %I:%M %p') }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Professional Business Report Styling */
+.business-report-container {
+    background: #fff;
+    border: 2px solid #2c3e50;
+    border-radius: 8px;
+    padding: 30px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.report-header {
+    margin-bottom: 30px;
+}
+
+.company-name {
+    color: #2c3e50;
+    font-weight: 900;
+    font-size: 2.5rem;
+    margin-bottom: 15px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.company-details p {
+    margin: 5px 0;
+    color: #34495e;
+    font-size: 0.95rem;
+}
+
+.report-title {
+    color: #e74c3c;
+    font-weight: 800;
+    font-size: 2rem;
+    margin-bottom: 15px;
+    text-transform: uppercase;
+}
+
+.report-meta div {
+    margin: 8px 0;
+    color: #2c3e50;
+    font-size: 1rem;
+}
+
+.report-divider {
+    border: 2px solid #ecf0f1;
+    margin: 25px 0;
+}
+
+.section-title {
+    color: #2c3e50;
+    font-weight: 700;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+    font-size: 1.2rem;
+}
+
+.summary-card, .payment-card, .insight-card {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    border-left: 4px solid #3498db;
+}
+
+.summary-header, .payment-header, .insight-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+    color: #2c3e50;
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.summary-header i, .payment-header i, .insight-header i {
+    margin-right: 10px;
+    color: #3498db;
+}
+
+.summary-content p, .payment-content p {
+    margin: 8px 0;
+    color: #34495e;
+}
+
+.financial-card {
+    background: #fff;
+    border-radius: 8px;
+    padding: 25px;
+    text-align: center;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    border: 2px solid transparent;
+}
+
+.purchase-card {
+    border-color: #e74c3c;
+}
+
+.sale-card {
+    border-color: #27ae60;
+}
+
+.profit-card {
+    border-color: #f39c12;
+}
+
+.financial-header {
+    color: #7f8c8d;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    font-weight: 600;
+    margin-bottom: 15px;
+}
+
+.financial-amount {
+    font-size: 2rem;
+    font-weight: 900;
+    color: #2c3e50;
+    margin-bottom: 5px;
+}
+
+.financial-label {
+    color: #7f8c8d;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 10px 20px;
+    border-radius: 25px;
+    font-weight: 700;
+    font-size: 1rem;
+    margin-bottom: 15px;
+}
+
+.status-badge.paid {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-badge.partial {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.status-badge.pending {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.status-badge i {
+    margin-right: 8px;
+}
+
+.payment-chart {
+    margin-top: 15px;
+}
+
+.chart-item {
+    margin: 10px 0;
+}
+
+.chart-bar {
+    height: 20px;
+    border-radius: 10px;
+    margin-bottom: 5px;
+}
+
+.paid-bar {
+    background: linear-gradient(90deg, #27ae60, #2ecc71);
+}
+
+.due-bar {
+    background: linear-gradient(90deg, #e74c3c, #f39c12);
+}
+
+.chart-label {
+    font-size: 0.9rem;
+    color: #7f8c8d;
+}
+
+.metric-item, .market-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #ecf0f1;
+}
+
+.metric-item:last-child, .market-item:last-child {
+    border-bottom: none;
+}
+
+.metric-label, .market-label {
+    color: #7f8c8d;
+    font-weight: 500;
+}
+
+.metric-value, .market-value {
+    font-weight: 700;
+    color: #2c3e50;
+}
+
+.report-footer {
+    margin-top: 40px;
+    padding-top: 30px;
+    border-top: 2px solid #ecf0f1;
+    text-align: center;
+}
+
+.footer-message p {
+    margin: 5px 0;
+    color: #7f8c8d;
+}
+
+.generated-info {
+    font-size: 0.8rem;
+    opacity: 0.7;
+}
+
+/* Print Styles */
+@media print {
+    .btn, .sidebar, .navbar {
+        display: none !important;
+    }
+    
+    .business-report-container {
+        border: none !important;
+        box-shadow: none !important;
+        padding: 20px !important;
+    }
+    
+    body {
+        margin: 0 !important;
+        padding: 20px !important;
+        font-family: 'Arial', sans-serif !important;
+    }
+    
+    .company-name, .report-title {
+        color: #000 !important;
+    }
+    
+    .financial-card {
+        border: 1px solid #ccc !important;
+    }
+}
+</style>
+
+<script>
+// Calculate and update payment chart values
+document.addEventListener('DOMContentLoaded', function() {
+    const salePrice = parseFloat('{{ sale.sale_price }}');
+    const paidAmount = parseFloat('{{ sale.paid_amount }}');
+    const dueAmount = parseFloat('{{ sale.due_amount }}');
+    
+    // Update paid bar
+    const paidBar = document.getElementById('paid-bar');
+    const paidLabel = document.getElementById('paid-label');
+    if (paidBar && paidLabel) {
+        const paidPercentage = (paidAmount / salePrice) * 100;
+        paidBar.style.width = paidPercentage + '%';
+        paidLabel.textContent = 'Paid: ' + paidPercentage.toFixed(1) + '%';
+    }
+    
+    // Update due bar if exists
+    const dueBar = document.getElementById('due-bar');
+    const dueLabel = document.getElementById('due-label');
+    if (dueBar && dueLabel) {
+        const duePercentage = (dueAmount / salePrice) * 100;
+        dueBar.style.width = duePercentage + '%';
+        dueLabel.textContent = 'Due: ' + duePercentage.toFixed(1) + '%';
+    }
+});
+</script>
+{% endblock %} 

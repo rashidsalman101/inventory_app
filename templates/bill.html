@@ -1,122 +1,237 @@
 {% extends "base.html" %}
 
-{% block title %}Sale Bill - Mobile Shop Manager{% endblock %}
+{% block title %}Invoice - {{ sale.bill_number or 'Sale' }}{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 style="font-weight:700;"><i class="fas fa-receipt me-2"></i>Sale Bill</h2>
+    <h2 style="font-weight:700;"><i class="fas fa-receipt me-2"></i>Invoice</h2>
     <div>
-        <a href="{{ url_for('internal_report', sale_id=sale.id) }}" class="btn btn-info">
-            <i class="fas fa-chart-line me-2"></i>Internal Report
+        <a href="{{ url_for('business_report', sale_id=sale.id) }}" class="btn btn-info">
+            <i class="fas fa-chart-line me-2"></i>Business Report
         </a>
         <a href="{{ url_for('dashboard') }}" class="btn btn-primary">
             <i class="fas fa-home me-2"></i>Dashboard
         </a>
         <button onclick="window.print()" class="btn btn-success">
-            <i class="fas fa-print me-2"></i>Print
+            <i class="fas fa-print me-2"></i>Print Invoice
         </button>
     </div>
 </div>
 
 <div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-body">
-                <!-- Bill Header -->
-                <div class="text-center mb-4">
-                    <h3 class="text-primary">Mobile Shop Manager</h3>
-                    <p class="text-muted mb-1">Inventory Management System</p>
-                    <p class="text-muted mb-0">Sale Receipt</p>
-                </div>
-                
-                <hr>
-                
-                <!-- Sale Details -->
-                <div class="row mb-4">
+    <div class="col-md-10">
+        <div class="invoice-container">
+            <!-- Invoice Header -->
+            <div class="invoice-header">
+                <div class="row">
                     <div class="col-md-6">
-                        <h6 class="text-muted">Sale Information</h6>
-                        <p class="mb-1"><strong>Sale Date:</strong> {{ sale.date.strftime('%Y-%m-%d %H:%M') }}</p>
-                        <p class="mb-1"><strong>Sale ID:</strong> #{{ sale.id }}</p>
-                        <p class="mb-1"><strong>IMEI:</strong> {{ sale.imei_number }}</p>
+                        <div class="company-info">
+                            <h1 class="company-name">MOBILE SHOP</h1>
+                            <div class="company-details">
+                                <p><i class="fas fa-map-marker-alt me-2"></i>123 Main Street, City, Pakistan</p>
+                                <p><i class="fas fa-phone me-2"></i>+92-300-1234567</p>
+                                <p><i class="fas fa-envelope me-2"></i>info@mobileshop.com</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <div class="invoice-meta">
+                            <h3 class="invoice-title">INVOICE</h3>
+                            <div class="invoice-number">
+                                <strong>Invoice #:</strong> {{ sale.bill_number or sale.id }}
+                            </div>
+                            <div class="invoice-date">
+                                <strong>Date:</strong> {{ sale.date.strftime('%d %B %Y') }}
+                            </div>
+                            <div class="invoice-time">
+                                <strong>Time:</strong> {{ sale.date.strftime('%I:%M %p') }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <hr class="invoice-divider">
+
+            <!-- Customer Information -->
+            <div class="customer-section">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5 class="section-title">Bill To:</h5>
                         {% if sale.customer_type == 'individual' and sale.customer_name %}
-                        <p class="mb-0"><strong>Customer:</strong> {{ sale.customer_name }}</p>
+                        <div class="customer-details">
+                            <p><strong>Name:</strong> {{ sale.customer_name }}</p>
+                            <p><strong>Type:</strong> Individual Customer</p>
+                        </div>
                         {% elif sale.customer_type == 'shop' and sale.shop %}
-                        <p class="mb-0"><strong>Shop:</strong> {{ sale.shop.name }}</p>
+                        <div class="customer-details">
+                            <p><strong>Shop Name:</strong> {{ sale.shop.name }}</p>
+                            <p><strong>Owner:</strong> {{ sale.shop.owner_name }}</p>
+                            {% if sale.shop.contact_info %}
+                            <p><strong>Contact:</strong> {{ sale.shop.contact_info }}</p>
+                            {% endif %}
+                            {% if sale.shop.address %}
+                            <p><strong>Address:</strong> {{ sale.shop.address }}</p>
+                            {% endif %}
+                        </div>
+                        {% else %}
+                        <div class="customer-details">
+                            <p><strong>Type:</strong> {{ sale.customer_type|title }} Customer</p>
+                        </div>
                         {% endif %}
                     </div>
-                    <div class="col-md-6 text-md-end">
-                        <h6 class="text-muted">Device Information</h6>
-                        <p class="mb-1"><strong>Brand:</strong> {{ sale.model.brand.name }}</p>
-                        <p class="mb-1"><strong>Model:</strong> {{ sale.model.name }}</p>
-                        <p class="mb-0"><strong>Type:</strong> 
-                            <span class="badge bg-{{ 'success' if sale.inventory_type == 'new' else 'warning' }}">
-                                {{ sale.inventory_type.title() }}
-                            </span>
-                        </p>
-                    </div>
-                </div>
-                
-                <!-- Price Breakdown -->
-                <div class="table-responsive mb-4">
-                    <table class="table table-bordered">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Description</th>
-                                <th class="text-end">Amount (PKR)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr class="table-primary">
-                                <td><strong>Total Amount</strong></td>
-                                <td class="text-end"><strong>{{ "{:,.2f}".format(sale.sale_price) }}</strong></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                
-                <!-- Summary -->
-                <div class="row">
-                    <div class="col-md-12">
-                        <div class="card border-primary">
-                            <div class="card-body text-center">
-                                <h6 class="text-primary">Total Amount</h6>
-                                <h3 class="text-primary mb-0">PKR {{ "{:,.2f}".format(sale.sale_price) }}</h3>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Payment Information (for shop sales) -->
-                {% if sale.customer_type == 'shop' %}
-                <div class="row mt-3">
-                    <div class="col-md-12">
-                        <div class="card border-{{ 'success' if sale.payment_status == 'paid' else 'warning' }}">
-                            <div class="card-body">
-                                <h6 class="text-{{ 'success' if sale.payment_status == 'paid' else 'warning' }}">
-                                    <i class="fas fa-{{ 'check-circle' if sale.payment_status == 'paid' else 'clock' }} me-2"></i>
-                                    Payment Status: {{ sale.payment_status.title() }}
-                                </h6>
-                                {% if sale.paid_amount > 0 %}
-                                <p class="mb-1"><strong>Amount Paid:</strong> PKR {{ "{:,.2f}".format(sale.paid_amount) }}</p>
+                    <div class="col-md-6 text-end">
+                        <h5 class="section-title">Payment Terms:</h5>
+                        <div class="payment-terms">
+                            {% if sale.customer_type == 'shop' %}
+                                {% if sale.payment_status == 'paid' %}
+                                <p><span class="badge bg-success">FULLY PAID</span></p>
+                                {% elif sale.payment_status == 'partial' %}
+                                <p><span class="badge bg-warning">PARTIAL PAYMENT</span></p>
+                                {% else %}
+                                <p><span class="badge bg-danger">PENDING PAYMENT</span></p>
                                 {% endif %}
-                                {% if sale.due_amount > 0 %}
-                                <p class="mb-1"><strong>Amount Due:</strong> PKR {{ "{:,.2f}".format(sale.due_amount) }}</p>
                                 {% if sale.due_date %}
-                                <p class="mb-0"><strong>Due Date:</strong> {{ sale.due_date.strftime('%Y-%m-%d') }}</p>
+                                <p><strong>Due Date:</strong> {{ sale.due_date.strftime('%d %B %Y') }}</p>
                                 {% endif %}
-                                {% endif %}
-                            </div>
+                            {% else %}
+                                <p><span class="badge bg-success">PAID IN FULL</span></p>
+                            {% endif %}
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <hr class="invoice-divider">
+
+            <!-- Device Details -->
+            <div class="device-section">
+                <h5 class="section-title">Device Details:</h5>
+                <div class="device-info">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <p><strong>Brand:</strong> {{ sale.model.brand.name }}</p>
+                        </div>
+                        <div class="col-md-4">
+                            <p><strong>Model:</strong> {{ sale.model.name }}</p>
+                        </div>
+                        <div class="col-md-4">
+                            <p><strong>Condition:</strong> 
+                                <span class="badge bg-{{ 'success' if sale.inventory_type == 'new' else 'warning' }}">
+                                    {{ sale.inventory_type|upper }}
+                                </span>
+                            </p>
+                        </div>
+                    </div>
+                    <div class="imei-section">
+                        <p><strong>IMEI Number:</strong></p>
+                        <div class="imei-display">{{ sale.imei_number }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <hr class="invoice-divider">
+
+            <!-- Grouped Sales Information (if part of multiple sale) -->
+            {% if sale.bill_number %}
+                {% set grouped_sales = [] %}
+                {% for s in all_sales if s.bill_number == sale.bill_number %}
+                    {% set _ = grouped_sales.append(s) %}
+                {% endfor %}
+                
+                {% if grouped_sales|length > 1 %}
+                <div class="grouped-sales-section">
+                    <h5 class="section-title">Complete Transaction Details:</h5>
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Sr.</th>
+                                    <th>Device</th>
+                                    <th>IMEI</th>
+                                    <th>Condition</th>
+                                    <th>Price (PKR)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for grouped_sale in grouped_sales %}
+                                <tr class="{{ 'table-success' if grouped_sale.id == sale.id else '' }}">
+                                    <td>{{ loop.index }}</td>
+                                    <td>
+                                        <strong>{{ grouped_sale.model.brand.name }} {{ grouped_sale.model.name }}</strong>
+                                    </td>
+                                    <td>
+                                        <code class="imei-code">{{ grouped_sale.imei_number }}</code>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ 'success' if grouped_sale.inventory_type == 'new' else 'warning' }}">
+                                            {{ grouped_sale.inventory_type|upper }}
+                                        </span>
+                                    </td>
+                                    <td class="text-end">{{ "{:,.2f}".format(grouped_sale.sale_price) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
                 {% endif %}
-                
-                <hr>
-                
-                <!-- Footer -->
-                <div class="text-center">
-                    <p class="text-muted mb-0">Thank you for your business!</p>
-                    <small class="text-muted">Generated on {{ sale.date.strftime('%Y-%m-%d %H:%M:%S') }}</small>
+            {% endif %}
+
+            <!-- Price Breakdown -->
+            <div class="price-section">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="price-breakdown">
+                            <div class="price-row">
+                                <span class="price-label">Device Price:</span>
+                                <span class="price-value">PKR {{ "{:,.2f}".format(sale.sale_price) }}</span>
+                            </div>
+                            {% if grouped_sales|length > 1 %}
+                            <div class="price-row total-row">
+                                <span class="price-label total-label">Total Amount:</span>
+                                <span class="price-value total-value">PKR {{ "{:,.2f}".format(grouped_sales|sum(attribute='sale_price')) }}</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="payment-summary">
+                            {% if sale.customer_type == 'shop' %}
+                            <div class="payment-details">
+                                <p><strong>Amount Paid:</strong> PKR {{ "{:,.2f}".format(sale.paid_amount) }}</p>
+                                {% if sale.due_amount > 0 %}
+                                <p><strong>Amount Due:</strong> PKR {{ "{:,.2f}".format(sale.due_amount) }}</p>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+
+            <!-- Footer -->
+            <div class="invoice-footer">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="signature-section">
+                            <p><strong>Customer Signature:</strong></p>
+                            <div class="signature-line"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <div class="authorized-section">
+                            <p><strong>Authorized Signature:</strong></p>
+                            <div class="signature-line"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="footer-message">
+                    <p><strong>Thank you for choosing us!</strong></p>
+                    <p>For any queries, please contact: +92-300-1234567</p>
+                    <p class="generated-info">Generated on {{ sale.date.strftime('%d %B %Y at %I:%M %p') }}</p>
                 </div>
             </div>
         </div>
@@ -124,18 +239,260 @@
 </div>
 
 <style>
+/* Professional Invoice Styling */
+.invoice-container {
+    background: #fff;
+    border: 2px solid #2c3e50;
+    border-radius: 8px;
+    padding: 30px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.invoice-header {
+    margin-bottom: 30px;
+}
+
+.company-name {
+    color: #2c3e50;
+    font-weight: 900;
+    font-size: 2.5rem;
+    margin-bottom: 15px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.company-details p {
+    margin: 5px 0;
+    color: #34495e;
+    font-size: 0.95rem;
+}
+
+.invoice-title {
+    color: #e74c3c;
+    font-weight: 800;
+    font-size: 2rem;
+    margin-bottom: 15px;
+    text-transform: uppercase;
+}
+
+.invoice-meta div {
+    margin: 8px 0;
+    color: #2c3e50;
+    font-size: 1rem;
+}
+
+.invoice-divider {
+    border: 2px solid #ecf0f1;
+    margin: 25px 0;
+}
+
+.section-title {
+    color: #2c3e50;
+    font-weight: 700;
+    margin-bottom: 15px;
+    text-transform: uppercase;
+    font-size: 1.1rem;
+}
+
+.customer-details p, .payment-terms p {
+    margin: 8px 0;
+    color: #34495e;
+}
+
+.device-info {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    border-left: 4px solid #3498db;
+}
+
+.device-info .row p {
+    margin: 8px 0;
+    color: #2c3e50;
+}
+
+.imei-section {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #dee2e6;
+}
+
+.imei-display {
+    font-family: 'Courier New', monospace;
+    font-size: 1.1rem;
+    font-weight: 600;
+    background: #2c3e50;
+    color: #fff;
+    padding: 10px 15px;
+    border-radius: 6px;
+    text-align: center;
+    letter-spacing: 1px;
+}
+
+.grouped-sales-section {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin: 20px 0;
+}
+
+.grouped-sales-section .table {
+    margin-bottom: 0;
+}
+
+.grouped-sales-section .table th {
+    background: #2c3e50;
+    color: #fff;
+    font-weight: 600;
+    border: none;
+}
+
+.imei-code {
+    font-family: 'Courier New', monospace;
+    background: #ecf0f1;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+.price-section {
+    background: #ecf0f1;
+    padding: 25px;
+    border-radius: 8px;
+    margin: 25px 0;
+}
+
+.price-breakdown {
+    background: #fff;
+    padding: 20px;
+    border-radius: 6px;
+}
+
+.price-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.price-row:last-child {
+    border-bottom: none;
+}
+
+.total-row {
+    background: #2c3e50;
+    color: #fff;
+    margin: 15px -20px -20px -20px;
+    padding: 20px;
+    border-radius: 0 0 6px 6px;
+    border-bottom: none;
+}
+
+.price-label {
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.total-label {
+    font-weight: 700;
+    font-size: 1.2rem;
+}
+
+.price-value {
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+.total-value {
+    font-weight: 900;
+    font-size: 1.3rem;
+}
+
+.payment-summary {
+    background: #fff;
+    padding: 20px;
+    border-radius: 6px;
+    height: 100%;
+}
+
+.payment-details p {
+    margin: 10px 0;
+    color: #2c3e50;
+}
+
+
+
+.invoice-footer {
+    margin-top: 40px;
+    padding-top: 30px;
+    border-top: 2px solid #ecf0f1;
+}
+
+.signature-section, .authorized-section {
+    text-align: center;
+}
+
+.signature-line {
+    height: 2px;
+    background: #2c3e50;
+    margin-top: 30px;
+    width: 200px;
+    display: inline-block;
+}
+
+.footer-message {
+    text-align: center;
+    margin-top: 30px;
+    color: #7f8c8d;
+}
+
+.footer-message p {
+    margin: 5px 0;
+}
+
+.generated-info {
+    font-size: 0.8rem;
+    opacity: 0.7;
+}
+
+/* Print Styles */
 @media print {
     .btn, .sidebar, .navbar {
         display: none !important;
     }
-    .card {
+    
+    .invoice-container {
         border: none !important;
         box-shadow: none !important;
+        padding: 20px !important;
     }
+    
     body {
         margin: 0 !important;
         padding: 20px !important;
+        font-family: 'Arial', sans-serif !important;
+    }
+    
+    .company-name {
+        color: #000 !important;
+    }
+    
+    .invoice-title {
+        color: #000 !important;
+    }
+    
+    .imei-display {
+        background: #f0f0f0 !important;
+        color: #000 !important;
+    }
+    
+    .total-row {
+        background: #f0f0f0 !important;
+        color: #000 !important;
     }
 }
 </style>
+
+<!-- Grouped sales data will be passed from the backend -->
 {% endblock %} 

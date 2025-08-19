@@ -25,17 +25,54 @@
                     {% endif %}
                 {% endwith %}
                 
-                <form method="POST" action="{{ url_for('search_imei') }}">
+                <!-- Sale Type Selection -->
+                <div class="mb-4">
+                    <label class="form-label">Sale Type</label>
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="sale_type" id="single_sale" value="single" checked>
+                        <label class="btn btn-outline-primary" for="single_sale">
+                            <i class="fas fa-mobile-alt me-2"></i>Single Device Sale
+                        </label>
+                        <input type="radio" class="btn-check" name="sale_type" id="multiple_sale" value="multiple">
+                        <label class="btn btn-outline-primary" for="multiple_sale">
+                            <i class="fas fa-list me-2"></i>Multiple Device Sale
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Single IMEI Form -->
+                <form method="POST" action="{{ url_for('search_imei') }}" id="single_imei_form">
                     <div class="mb-4">
                         <label for="imei" class="form-label">IMEI Number</label>
                         <div class="input-group">
                             <input type="text" class="form-control form-control-lg" id="imei" name="imei" 
-                                   placeholder="Enter or scan IMEI number" required maxlength="15">
+                                   placeholder="Enter or scan IMEI number" required>
                             <button class="btn btn-primary" type="submit">
                                 <i class="fas fa-search me-2"></i>Search
                             </button>
                         </div>
-                        <div class="form-text">Enter the 15-digit IMEI number to search for the device</div>
+                        <div class="form-text">Enter any IMEI number to search for the device (any format accepted)</div>
+                    </div>
+                </form>
+
+                <!-- Multiple IMEI Form -->
+                <form method="POST" action="{{ url_for('search_multiple_imei') }}" id="multiple_imei_form" style="display: none;">
+                    <div class="mb-4">
+                        <label for="imei_numbers" class="form-label">IMEI Numbers</label>
+                        <textarea class="form-control" id="imei_numbers" name="imei_numbers" rows="6" 
+                                  placeholder="Enter IMEI numbers (one per line)&#10;Example:&#10;123456789012345&#10;123456789012346&#10;123456789012347" required></textarea>
+                        <div class="form-text">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Enter one IMEI number per line. All devices must be available in inventory.
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-success flex-fill">
+                            <i class="fas fa-search me-2"></i>Search Multiple Devices
+                        </button>
+                        <button type="button" class="btn btn-outline-primary" onclick="scanMultipleIMEI()">
+                            <i class="fas fa-barcode me-2"></i>Scan IMEI
+                        </button>
                     </div>
                 </form>
                 
@@ -49,13 +86,24 @@
                 <!-- Instructions -->
                 <div class="mt-4">
                     <h6>How to use:</h6>
-                    <ol>
-                        <li>Enter the IMEI number of the device you want to sell</li>
-                        <li>The system will search for the device in your inventory</li>
-                        <li>If found, you can proceed to enter the sale price</li>
-                        <li>The system will automatically calculate the profit</li>
-                        <li>A bill will be generated after the sale</li>
-                    </ol>
+                    <div id="single_instructions">
+                        <ol>
+                            <li>Enter the IMEI number of the device you want to sell</li>
+                            <li>The system will search for the device in your inventory</li>
+                            <li>If found, you can proceed to enter the sale price</li>
+                            <li>The system will automatically calculate the profit</li>
+                            <li>A bill will be generated after the sale</li>
+                        </ol>
+                    </div>
+                    <div id="multiple_instructions" style="display: none;">
+                        <ol>
+                            <li>Enter multiple IMEI numbers (one per line)</li>
+                            <li>The system will search for all devices in your inventory</li>
+                            <li>You can set a common sale price or individual prices</li>
+                            <li>The system will calculate total profit for the batch</li>
+                            <li>A consolidated bill will be generated for all items</li>
+                        </ol>
+                    </div>
                 </div>
             </div>
         </div>
@@ -63,6 +111,33 @@
 </div>
 
 <script>
+// Handle sale type selection
+document.addEventListener('DOMContentLoaded', function() {
+    const singleSaleRadio = document.getElementById('single_sale');
+    const multipleSaleRadio = document.getElementById('multiple_sale');
+    const singleForm = document.getElementById('single_imei_form');
+    const multipleForm = document.getElementById('multiple_imei_form');
+    const singleInstructions = document.getElementById('single_instructions');
+    const multipleInstructions = document.getElementById('multiple_instructions');
+    
+    function toggleSaleType() {
+        if (singleSaleRadio.checked) {
+            singleForm.style.display = 'block';
+            multipleForm.style.display = 'none';
+            singleInstructions.style.display = 'block';
+            multipleInstructions.style.display = 'none';
+        } else {
+            singleForm.style.display = 'none';
+            multipleForm.style.display = 'block';
+            singleInstructions.style.display = 'none';
+            multipleInstructions.style.display = 'block';
+        }
+    }
+    
+    singleSaleRadio.addEventListener('change', toggleSaleType);
+    multipleSaleRadio.addEventListener('change', toggleSaleType);
+});
+
 function startScanner() {
     // Focus on the IMEI input field
     document.getElementById('imei').focus();
@@ -72,7 +147,7 @@ function startScanner() {
     alert.className = 'alert alert-info mt-3';
     alert.innerHTML = '<i class="fas fa-info-circle me-2"></i>Ready to scan! Use your barcode scanner to scan the IMEI.';
     
-    const form = document.querySelector('form');
+    const form = document.querySelector('#single_imei_form');
     form.appendChild(alert);
     
     // Remove the alert after 5 seconds
@@ -83,17 +158,29 @@ function startScanner() {
     }, 5000);
 }
 
-// Auto-submit form when IMEI is scanned (15 digits)
-document.getElementById('imei').addEventListener('input', function(e) {
-    const imei = e.target.value.replace(/\D/g, ''); // Remove non-digits
-    e.target.value = imei; // Update the input with cleaned value
+function scanMultipleIMEI() {
+    // Focus on the IMEI textarea
+    document.getElementById('imei_numbers').focus();
     
-    if (imei.length === 15) {
-        // Auto-submit after a short delay
-        setTimeout(() => {
-            document.querySelector('form').submit();
-        }, 500);
-    }
+    // Show a message about scanner
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-info mt-3';
+    alert.innerHTML = '<i class="fas fa-info-circle me-2"></i>Ready to scan! Use your barcode scanner to scan multiple IMEIs.';
+    
+    const form = document.querySelector('#multiple_imei_form');
+    form.appendChild(alert);
+    
+    // Remove the alert after 5 seconds
+    setTimeout(() => {
+        if (alert.parentNode) {
+            alert.remove();
+        }
+    }, 5000);
+}
+
+// Auto-submit functionality removed - allow any IMEI format
+document.getElementById('imei').addEventListener('input', function(e) {
+    // No format restrictions - accept any input
 });
 </script>
 {% endblock %} 

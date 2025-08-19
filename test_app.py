@@ -38,7 +38,7 @@ def test_app():
             print(f"✅ Total Incentives: PKR {total_incentives}")
             
             # Test shop queries
-            shops_with_pending = db.session.query(Shop).join(Sale).filter(
+            shops_with_pending = db.session.query(Shop).select_from(Shop).join(Sale, Shop.id == Sale.shop_id).filter(
                 Sale.payment_status.in_(['pending', 'partial'])
             ).distinct().all()
             print(f"✅ Shops with pending payments: {len(shops_with_pending)}")

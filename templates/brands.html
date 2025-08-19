@@ -263,8 +263,10 @@ function buyModel(modelId) {
 function viewHistory() {
     const modelId = document.getElementById('modelSelect').value;
     if (modelId) {
-        // You can implement a history view later
-        alert('History view coming soon!');
+        // Redirect to transactions page filtered by this model
+        window.location.href = `/transactions?model_id=${modelId}`;
+    } else {
+        alert('Please select a model first to view its history.');
     }
 }
 

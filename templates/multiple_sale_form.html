@@ -1,0 +1,395 @@
+{% extends "base.html" %}
+
+{% block title %}Complete Multiple Sale - Mobile Shop Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 style="font-weight:700;"><i class="fas fa-cash-register me-2"></i>Complete Multiple Sale</h2>
+    <a href="{{ url_for('sale_module') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left me-2"></i>Back to Sale Module
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-list me-2"></i>Devices for Sale ({{ devices|length }} items)</h5>
+            </div>
+            <div class="card-body">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+                
+                <!-- Sale Form -->
+                <form method="POST" action="{{ url_for('add_multiple_sale') }}" id="multipleSaleForm">
+                    
+                    <!-- Customer Information -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label for="customer_type" class="form-label">Customer Type</label>
+                            <select class="form-control" id="customer_type" name="customer_type" required>
+                                <option value="">Select Customer Type</option>
+                                <option value="individual">Individual Customer</option>
+                                <option value="shop">Shop</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Pricing Method</label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="pricing_method" id="common_price" value="common" checked>
+                                <label class="btn btn-outline-primary" for="common_price">
+                                    <i class="fas fa-equals me-1"></i>Common Price
+                                </label>
+                                <input type="radio" class="btn-check" name="pricing_method" id="individual_price" value="individual">
+                                <label class="btn btn-outline-primary" for="individual_price">
+                                    <i class="fas fa-tags me-1"></i>Individual Prices
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Customer Details -->
+                    <div id="individual_details" style="display: none;">
+                        <div class="mb-3">
+                            <label for="customer_name" class="form-label">Customer Name</label>
+                            <input type="text" class="form-control" id="customer_name" name="customer_name">
+                        </div>
+                    </div>
+                    
+                    <div id="shop_details" style="display: none;">
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label for="shop_id" class="form-label">Select Shop</label>
+                                <select class="form-control" id="shop_id" name="shop_id">
+                                    <option value="">Select Shop</option>
+                                    {% for shop in shops %}
+                                    <option value="{{ shop.id }}">
+                                        {{ shop.name }} ({{ shop.owner_name }})
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="paid_amount" class="form-label">Total Amount Paid (PKR)</label>
+                                <input type="number" class="form-control" id="paid_amount" name="paid_amount" 
+                                       step="0.01" min="0" value="0" onchange="calculateDueAmount()">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="due_date" class="form-label">Payment Due Date</label>
+                                <input type="date" class="form-control" id="due_date" name="due_date">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Common Price Section -->
+                    <div id="common_price_section" class="mb-4">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label for="common_sale_price" class="form-label">Common Sale Price (PKR)</label>
+                                <input type="number" class="form-control" id="common_sale_price" name="common_sale_price" 
+                                       step="0.01" min="0" onchange="applyCommonPrice()">
+                                <small class="text-muted">This price will be applied to all devices</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Devices List -->
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Device</th>
+                                    <th>IMEI</th>
+                                    <th>Purchase Price</th>
+                                    <th class="individual-price-col" style="display: none;">Sale Price</th>
+                                    <th>Profit</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for device in devices %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ device.brand.name if device.brand else 'Unknown' }} {{ device.model.name if device.model else 'Unknown' }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ device.purchase.inventory_type.title() }}</small>
+                                        <input type="hidden" name="devices[{{ loop.index0 }}][model_id]" value="{{ device.model.id if device.model else '' }}">
+                                        <input type="hidden" name="devices[{{ loop.index0 }}][imei]" value="{{ device.imei }}">
+                                        <input type="hidden" name="devices[{{ loop.index0 }}][purchase_price]" value="{{ device.purchase.purchase_price }}">
+                                        <input type="hidden" name="devices[{{ loop.index0 }}][inventory_type]" value="{{ device.purchase.inventory_type }}">
+                                    </td>
+                                    <td>
+                                        <code>{{ device.imei }}</code>
+                                    </td>
+                                    <td>
+                                        <span class="text-danger fw-bold">PKR {{ "{:,.2f}".format(device.purchase.purchase_price) }}</span>
+                                    </td>
+                                    <td class="individual-price-col" style="display: none;">
+                                        <input type="number" class="form-control individual-price-input" 
+                                               name="devices[{{ loop.index0 }}][sale_price]" 
+                                               step="0.01" min="0" 
+                                               data-purchase-price="{{ device.purchase.purchase_price }}"
+                                               data-index="{{ loop.index0 }}"
+                                               onchange="calculateIndividualProfit({{ loop.index0 }})">
+                                    </td>
+                                    <td>
+                                        <span class="profit-display fw-bold" id="profit_{{ loop.index0 }}">PKR 0.00</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot class="table-light">
+                                <tr>
+                                    <th colspan="3">Total</th>
+                                    <th class="individual-price-col" style="display: none;">
+                                        <span id="total_sale_price" class="fw-bold text-success">PKR 0.00</span>
+                                    </th>
+                                    <th>
+                                        <span id="total_profit" class="fw-bold text-success">PKR 0.00</span>
+                                    </th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                    <!-- Summary -->
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-calculator me-2"></i>Sale Summary</h6>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <small class="text-muted">Total Purchase:</small><br>
+                                <strong>PKR {{ "{:,.2f}".format(devices|sum(attribute='purchase.purchase_price')) }}</strong>
+                            </div>
+                            <div class="col-md-3">
+                                <small class="text-muted">Total Sale:</small><br>
+                                <strong id="summary_sale_price">PKR 0.00</strong>
+                            </div>
+                            <div class="col-md-3">
+                                <small class="text-muted">Total Profit:</small><br>
+                                <strong id="summary_profit" class="text-success">PKR 0.00</strong>
+                            </div>
+                            <div class="col-md-3">
+                                <small class="text-muted">Device Count:</small><br>
+                                <strong>{{ devices|length }} items</strong>
+                            </div>
+                        </div>
+                        <div id="due_amount_alert" class="mt-3" style="display: none;">
+                            <hr>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <small class="text-muted">Amount Paid:</small><br>
+                                    <strong id="summary_paid">PKR 0.00</strong>
+                                </div>
+                                <div class="col-md-6">
+                                    <small class="text-muted">Due Amount:</small><br>
+                                    <strong id="summary_due" class="text-warning">PKR 0.00</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-success flex-fill" id="submitBtn">
+                            <i class="fas fa-check me-2"></i>Complete Multiple Sale
+                        </button>
+                        <a href="{{ url_for('sale_module') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-2"></i>Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const totalPurchasePrice = {{ devices|sum(attribute='purchase.purchase_price')|float }};
+
+// Handle customer type selection
+document.getElementById('customer_type').addEventListener('change', function() {
+    const customerType = this.value;
+    const individualDetails = document.getElementById('individual_details');
+    const shopDetails = document.getElementById('shop_details');
+    
+    if (customerType === 'individual') {
+        individualDetails.style.display = 'block';
+        shopDetails.style.display = 'none';
+        document.getElementById('customer_name').required = true;
+        document.getElementById('shop_id').required = false;
+        document.getElementById('due_date').required = false;
+    } else if (customerType === 'shop') {
+        individualDetails.style.display = 'none';
+        shopDetails.style.display = 'block';
+        document.getElementById('customer_name').required = false;
+        document.getElementById('shop_id').required = true;
+        document.getElementById('due_date').required = true;
+    } else {
+        individualDetails.style.display = 'none';
+        shopDetails.style.display = 'none';
+        document.getElementById('customer_name').required = false;
+        document.getElementById('shop_id').required = false;
+        document.getElementById('due_date').required = false;
+    }
+    
+    calculateDueAmount();
+});
+
+// Handle pricing method selection
+document.addEventListener('DOMContentLoaded', function() {
+    const commonPriceRadio = document.getElementById('common_price');
+    const individualPriceRadio = document.getElementById('individual_price');
+    const commonPriceSection = document.getElementById('common_price_section');
+    const individualPriceCols = document.querySelectorAll('.individual-price-col');
+    
+    function togglePricingMethod() {
+        if (commonPriceRadio.checked) {
+            commonPriceSection.style.display = 'block';
+            individualPriceCols.forEach(col => col.style.display = 'none');
+            document.getElementById('common_sale_price').required = true;
+            document.querySelectorAll('.individual-price-input').forEach(input => {
+                input.required = false;
+            });
+        } else {
+            commonPriceSection.style.display = 'none';
+            individualPriceCols.forEach(col => col.style.display = 'table-cell');
+            document.getElementById('common_sale_price').required = false;
+            document.querySelectorAll('.individual-price-input').forEach(input => {
+                input.required = true;
+            });
+        }
+        updateTotals();
+    }
+    
+    commonPriceRadio.addEventListener('change', togglePricingMethod);
+    individualPriceRadio.addEventListener('change', togglePricingMethod);
+});
+
+// Apply common price to all devices
+function applyCommonPrice() {
+    const commonPrice = parseFloat(document.getElementById('common_sale_price').value) || 0;
+    const purchasePrices = document.querySelectorAll('input[name*="[purchase_price]"]');
+    
+    purchasePrices.forEach((input, index) => {
+        const purchasePrice = parseFloat(input.value);
+        const profit = commonPrice - purchasePrice;
+        
+        // Update profit display
+        const profitDisplay = document.getElementById(`profit_${index}`);
+        profitDisplay.textContent = `PKR ${profit.toFixed(2)}`;
+        profitDisplay.className = `profit-display fw-bold ${profit >= 0 ? 'text-success' : 'text-danger'}`;
+    });
+    
+    updateTotals();
+}
+
+// Calculate individual profit
+function calculateIndividualProfit(index) {
+    const salePriceInput = document.querySelector(`input[name="devices[${index}][sale_price]"]`);
+    const purchasePrice = parseFloat(salePriceInput.dataset.purchasePrice);
+    const salePrice = parseFloat(salePriceInput.value) || 0;
+    const profit = salePrice - purchasePrice;
+    
+    // Update profit display
+    const profitDisplay = document.getElementById(`profit_${index}`);
+    profitDisplay.textContent = `PKR ${profit.toFixed(2)}`;
+    profitDisplay.className = `profit-display fw-bold ${profit >= 0 ? 'text-success' : 'text-danger'}`;
+    
+    updateTotals();
+}
+
+// Update totals
+function updateTotals() {
+    const commonPriceRadio = document.getElementById('common_price');
+    let totalSalePrice = 0;
+    let totalProfit = 0;
+    
+    if (commonPriceRadio.checked) {
+        const commonPrice = parseFloat(document.getElementById('common_sale_price').value) || 0;
+                 const deviceCount = {{ devices|length|int }};
+        totalSalePrice = commonPrice * deviceCount;
+        totalProfit = totalSalePrice - totalPurchasePrice;
+    } else {
+        const individualPriceInputs = document.querySelectorAll('.individual-price-input');
+        individualPriceInputs.forEach(input => {
+            const salePrice = parseFloat(input.value) || 0;
+            const purchasePrice = parseFloat(input.dataset.purchasePrice);
+            totalSalePrice += salePrice;
+            totalProfit += (salePrice - purchasePrice);
+        });
+    }
+    
+    // Update displays
+    document.getElementById('total_sale_price').textContent = `PKR ${totalSalePrice.toFixed(2)}`;
+    document.getElementById('total_profit').textContent = `PKR ${totalProfit.toFixed(2)}`;
+    document.getElementById('summary_sale_price').textContent = `PKR ${totalSalePrice.toFixed(2)}`;
+    document.getElementById('summary_profit').textContent = `PKR ${totalProfit.toFixed(2)}`;
+    document.getElementById('summary_profit').className = `text-${totalProfit >= 0 ? 'success' : 'danger'}`;
+    
+    calculateDueAmount();
+}
+
+// Calculate due amount for shop sales
+function calculateDueAmount() {
+    const customerType = document.getElementById('customer_type').value;
+    if (customerType !== 'shop') {
+        document.getElementById('due_amount_alert').style.display = 'none';
+        return;
+    }
+    
+    const totalSaleText = document.getElementById('summary_sale_price').textContent;
+    const totalSalePrice = parseFloat(totalSaleText.replace(/[^0-9.-]+/g, '')) || 0;
+    const paidAmount = parseFloat(document.getElementById('paid_amount').value) || 0;
+    const dueAmount = totalSalePrice - paidAmount;
+    
+    document.getElementById('summary_paid').textContent = `PKR ${paidAmount.toFixed(2)}`;
+    document.getElementById('summary_due').textContent = `PKR ${Math.max(0, dueAmount).toFixed(2)}`;
+    
+    if (totalSalePrice > 0) {
+        document.getElementById('due_amount_alert').style.display = 'block';
+    } else {
+        document.getElementById('due_amount_alert').style.display = 'none';
+    }
+}
+
+// Form validation
+document.getElementById('multipleSaleForm').addEventListener('submit', function(e) {
+    const customerType = document.getElementById('customer_type').value;
+    const commonPriceRadio = document.getElementById('common_price');
+    
+    if (!customerType) {
+        e.preventDefault();
+        alert('Please select a customer type');
+        return;
+    }
+    
+    if (commonPriceRadio.checked) {
+        const commonPrice = parseFloat(document.getElementById('common_sale_price').value) || 0;
+        if (commonPrice <= 0) {
+            e.preventDefault();
+            alert('Please enter a valid common sale price');
+            return;
+        }
+    } else {
+        const individualPriceInputs = document.querySelectorAll('.individual-price-input');
+        let hasEmptyPrice = false;
+        individualPriceInputs.forEach(input => {
+            if (!input.value || parseFloat(input.value) <= 0) {
+                hasEmptyPrice = true;
+            }
+        });
+        if (hasEmptyPrice) {
+            e.preventDefault();
+            alert('Please enter valid sale prices for all devices');
+            return;
+        }
+    }
+});
+</script>
+{% endblock %} 

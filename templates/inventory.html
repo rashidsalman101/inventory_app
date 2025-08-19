@@ -43,6 +43,70 @@
         text-align: center;
         margin-bottom: 1rem;
     }
+    
+    .brand-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 15px;
+        margin-top: 15px;
+    }
+    
+    .brand-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px;
+        border-radius: 10px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .brand-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    
+    .brand-card.selected {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        transform: scale(1.05);
+    }
+    
+    .brand-name {
+        font-weight: 700;
+        font-size: 1.1rem;
+        margin-bottom: 5px;
+    }
+    
+    .brand-count {
+        font-size: 0.9rem;
+        opacity: 0.9;
+        margin-bottom: 8px;
+    }
+    
+    .brand-breakdown {
+        font-size: 0.8rem;
+        display: flex;
+        justify-content: space-between;
+        opacity: 0.8;
+    }
+    
+    .brand-stats {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 4px solid #17a2b8;
+    }
+    
+    .brand-stats .stat-item {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 5px;
+    }
+    
+    .brand-stats .stat-item:last-child {
+        margin-bottom: 0;
+    }
 </style>
 {% endblock %}
 
@@ -54,7 +118,7 @@
             <div class="d-flex justify-content-between align-items-center">
                 <h2 class="mb-0">
                     <i class="fas fa-boxes text-primary me-2"></i>
-                    Complete Inventory
+                    Inventory Management
                 </h2>
                 <div>
                     <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">
@@ -71,19 +135,19 @@
         <div class="col-md-3">
             <div class="stats-card">
                 <h4 class="mb-1">{{ inventory_items|length }}</h4>
-                <p class="mb-0">Total Items</p>
+                <p class="mb-0">Total Devices</p>
             </div>
         </div>
         <div class="col-md-3">
             <div class="stats-card">
                 <h4 class="mb-1">{{ inventory_items|selectattr('status', 'equalto', 'Available')|list|length }}</h4>
-                <p class="mb-0">Available</p>
+                <p class="mb-0">Available for Sale</p>
             </div>
         </div>
         <div class="col-md-3">
             <div class="stats-card">
                 <h4 class="mb-1">{{ inventory_items|selectattr('status', 'equalto', 'Sold')|list|length }}</h4>
-                <p class="mb-0">Sold</p>
+                <p class="mb-0">Sold Devices</p>
             </div>
         </div>
         <div class="col-md-3">
@@ -96,7 +160,7 @@
                         Protected
                     {% endif %}
                 </h4>
-                <p class="mb-0">Total Profit</p>
+                <p class="mb-0">Total Revenue</p>
             </div>
         </div>
     </div>
@@ -109,7 +173,7 @@
                     <div class="col-md-4">
                         <h5 class="mb-2">
                             <i class="fas fa-filter me-2"></i>
-                            Quick Filters
+                            Inventory Filters
                         </h5>
                     </div>
                     <div class="col-md-8">
@@ -118,11 +182,78 @@
                                 <i class="fas fa-list me-1"></i>All Items
                             </button>
                             <button class="btn btn-success btn-sm" onclick="filterByStatus('Available')">
-                                <i class="fas fa-check me-1"></i>Available
+                                <i class="fas fa-check me-1"></i>Available for Sale
                             </button>
                             <button class="btn btn-danger btn-sm" onclick="filterByStatus('Sold')">
-                                <i class="fas fa-shopping-cart me-1"></i>Sold
+                                <i class="fas fa-shopping-cart me-1"></i>Sold Items
                             </button>
+                            <button class="btn btn-info btn-sm" onclick="toggleBrandFilter()">
+                                <i class="fas fa-tags me-1"></i>Filter by Brand
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Brand Filter Section -->
+    <div class="row mb-4" id="brand-filter-section" style="display: none;">
+        <div class="col-12">
+            <div class="card border-info">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-tags me-2"></i>
+                        Filter by Brand
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <select class="form-select" id="brand-select" onchange="filterByBrand()">
+                                <option value="">All Brands</option>
+                                {% set brands = inventory_items|map(attribute='brand')|unique|list %}
+                                {% for brand in brands %}
+                                    {% if brand %}
+                                    <option value="{{ brand.name }}">{{ brand.name }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="brand-stats" id="brand-stats">
+                                <small class="text-muted">Select a brand to view statistics</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <div class="brand-grid" id="brand-grid">
+                            {% set brand_counts = {} %}
+                            {% for item in inventory_items %}
+                                {% if item.brand %}
+                                    {% set brand_name = item.brand.name %}
+                                    {% if brand_name not in brand_counts %}
+                                        {% set _ = brand_counts.update({brand_name: {'total': 0, 'available': 0, 'sold': 0}}) %}
+                                    {% endif %}
+                                    {% set _ = brand_counts[brand_name].update({'total': brand_counts[brand_name]['total'] + 1}) %}
+                                    {% if item.status == 'Available' %}
+                                        {% set _ = brand_counts[brand_name].update({'available': brand_counts[brand_name]['available'] + 1}) %}
+                                    {% else %}
+                                        {% set _ = brand_counts[brand_name].update({'sold': brand_counts[brand_name]['sold'] + 1}) %}
+                                    {% endif %}
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% for brand_name, counts in brand_counts.items() %}
+                            <div class="brand-card" onclick="selectBrand('{{ brand_name }}')">
+                                <div class="brand-name">{{ brand_name }}</div>
+                                <div class="brand-count">{{ counts.total }} devices</div>
+                                <div class="brand-breakdown">
+                                    <span class="text-success">{{ counts.available }} available</span>
+                                    <span class="text-danger">{{ counts.sold }} sold</span>
+                                </div>
+                            </div>
+                            {% endfor %}
                         </div>
                     </div>
                 </div>
@@ -133,7 +264,7 @@
     <!-- Inventory Items -->
     <div class="row" id="inventory-container">
         {% for item in inventory_items %}
-        <div class="col-lg-6 col-xl-4 mb-4 inventory-item" data-status="{{ item.status }}">
+        <div class="col-lg-6 col-xl-4 mb-4 inventory-item" data-status="{{ item.status }}" data-brand="{{ item.brand.name if item.brand else 'Unknown' }}">
             <div class="card inventory-card h-100">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h6 class="mb-0">
@@ -265,16 +396,118 @@
 </div>
 
 <script>
+let currentStatusFilter = 'all';
+let currentBrandFilter = '';
+
 function filterByStatus(status) {
+    currentStatusFilter = status;
+    applyFilters();
+}
+
+function filterByBrand() {
+    const brandSelect = document.getElementById('brand-select');
+    currentBrandFilter = brandSelect.value;
+    
+    // Update brand cards selection
+    document.querySelectorAll('.brand-card').forEach(card => {
+        card.classList.remove('selected');
+    });
+    
+    if (currentBrandFilter) {
+        const selectedCard = document.querySelector(`.brand-card[onclick="selectBrand('${currentBrandFilter}')"]`);
+        if (selectedCard) {
+            selectedCard.classList.add('selected');
+        }
+        updateBrandStats(currentBrandFilter);
+    } else {
+        clearBrandStats();
+    }
+    
+    applyFilters();
+}
+
+function selectBrand(brandName) {
+    const brandSelect = document.getElementById('brand-select');
+    brandSelect.value = brandName;
+    filterByBrand();
+}
+
+function toggleBrandFilter() {
+    const brandSection = document.getElementById('brand-filter-section');
+    if (brandSection.style.display === 'none') {
+        brandSection.style.display = 'block';
+    } else {
+        brandSection.style.display = 'none';
+        // Reset brand filter when hiding
+        currentBrandFilter = '';
+        document.getElementById('brand-select').value = '';
+        document.querySelectorAll('.brand-card').forEach(card => {
+            card.classList.remove('selected');
+        });
+        clearBrandStats();
+        applyFilters();
+    }
+}
+
+function applyFilters() {
     const items = document.querySelectorAll('.inventory-item');
     
     items.forEach(item => {
-        if (status === 'all' || item.dataset.status === status) {
+        const statusMatch = currentStatusFilter === 'all' || item.dataset.status === currentStatusFilter;
+        const brandMatch = !currentBrandFilter || item.dataset.brand === currentBrandFilter;
+        
+        if (statusMatch && brandMatch) {
             item.style.display = 'block';
         } else {
             item.style.display = 'none';
         }
     });
+    
+    updateVisibleCount();
+}
+
+function updateBrandStats(brandName) {
+    const items = document.querySelectorAll(`[data-brand="${brandName}"]`);
+    let total = items.length;
+    let available = 0;
+    let sold = 0;
+    
+    items.forEach(item => {
+        if (item.dataset.status === 'Available') {
+            available++;
+        } else {
+            sold++;
+        }
+    });
+    
+    const statsHtml = `
+        <div class="stat-item">
+            <strong>${brandName} Statistics</strong>
+        </div>
+        <div class="stat-item">
+            <span>Total Devices:</span>
+            <span class="fw-bold">${total}</span>
+        </div>
+        <div class="stat-item">
+            <span>Available:</span>
+            <span class="text-success fw-bold">${available}</span>
+        </div>
+        <div class="stat-item">
+            <span>Sold:</span>
+            <span class="text-danger fw-bold">${sold}</span>
+        </div>
+    `;
+    
+    document.getElementById('brand-stats').innerHTML = statsHtml;
+}
+
+function clearBrandStats() {
+    document.getElementById('brand-stats').innerHTML = '<small class="text-muted">Select a brand to view statistics</small>';
+}
+
+function updateVisibleCount() {
+    const visibleItems = document.querySelectorAll('.inventory-item[style*="block"], .inventory-item:not([style*="none"])').length;
+    // You can add a counter display here if needed
 }
 
 function searchIMEI(imei) {

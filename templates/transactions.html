@@ -1,6 +1,198 @@
 {% extends "base.html" %}
 {% block title %}Transaction History{% endblock %}
 
+{% block extra_css %}
+<style>
+.transaction-group {
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.transaction-group:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    transform: translateY(-1px);
+}
+
+.group-header {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    padding: 20px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.transaction-date {
+    font-weight: 600;
+    color: #495057;
+    font-size: 1rem;
+}
+
+.transaction-time {
+    font-size: 0.85rem;
+}
+
+.bill-info {
+    text-align: center;
+}
+
+.bill-label {
+    display: block;
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-bottom: 5px;
+}
+
+.customer-info {
+    text-align: center;
+}
+
+.total-amount {
+    text-align: right;
+}
+
+.amount-label {
+    display: block;
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-bottom: 5px;
+}
+
+.amount-value {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #28a745;
+}
+
+.payment-status {
+    text-align: right;
+    margin-top: 5px;
+}
+
+.group-items {
+    background: #fff;
+}
+
+.group-items .table {
+    margin-bottom: 0;
+}
+
+.group-items .table th {
+    border-top: none;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #495057;
+}
+
+.group-items .table td {
+    vertical-align: middle;
+    padding: 12px 8px;
+}
+
+.imei-code {
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    background: #f8f9fa;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.btn-xs {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    border-radius: 0.25rem;
+}
+
+.group-summary {
+    background: #f8f9fa;
+    padding: 15px 20px;
+    border-top: 1px solid #dee2e6;
+    font-size: 0.9rem;
+}
+
+.summary-item {
+    display: flex;
+    align-items: center;
+    color: #6c757d;
+}
+
+.summary-item i {
+    color: #495057;
+    width: 20px;
+}
+
+.summary-text {
+    margin-left: 8px;
+    font-size: 0.85rem;
+}
+
+.due-amount {
+    color: #dc3545;
+}
+
+.due-amount i {
+    color: #dc3545;
+}
+
+.device-count {
+    text-align: center;
+}
+
+.count-label {
+    display: block;
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-bottom: 5px;
+}
+
+.count-value {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #495057;
+}
+
+.purchase-group {
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.purchase-header {
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+    padding: 15px 20px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.purchase-details {
+    background: #fff;
+    padding: 15px 20px;
+}
+
+.imei-list {
+    max-height: 150px;
+    overflow-y: auto;
+    background: #f8f9fa;
+    padding: 10px;
+    border-radius: 6px;
+    margin-top: 10px;
+}
+
+.imei-item {
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    padding: 2px 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.imei-item:last-child {
+    border-bottom: none;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid py-4">
     <!-- Header -->
@@ -24,7 +216,7 @@
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="sales-tab" data-bs-toggle="tab" data-bs-target="#sales" type="button" role="tab">
                 <i class="fas fa-shopping-cart me-2"></i>
-                Sales ({{ sales|length }})
+                Sales ({{ sales_groups|length }} transactions, {{ all_sales|length }} items)
             </button>
         </li>
         <li class="nav-item" role="presentation">
@@ -40,75 +232,151 @@
         <!-- Sales Tab -->
         <div class="tab-pane fade show active" id="sales" role="tabpanel">
             <div class="card shadow-sm">
-                <div class="card-header">
+                <div class="card-header bg-primary text-white">
                     <h5 class="mb-0">
                         <i class="fas fa-shopping-cart me-2"></i>
-                        Sales History
+                        Sales Transactions
+                        {% if model_filter %}
+                        <small class="d-block mt-1">Filtered by Model</small>
+                        {% endif %}
                     </h5>
                 </div>
                 <div class="card-body">
-                    {% if sales %}
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Bill No</th>
-                                    <th>Device</th>
-                                    <th>IMEI</th>
-                                    <th>Customer</th>
-                                    <th>Sale Price</th>
-                                    <th>Payment Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for sale in sales %}
-                                <tr>
-                                    <td>{{ sale.date.strftime('%d/%m/%Y') }}</td>
-                                    <td>
-                                        <span class="badge bg-secondary">{{ sale.bill_number or 'N/A' }}</span>
-                                    </td>
-                                    <td>
-                                        <strong>{{ sale.model.brand.name }} {{ sale.model.name }}</strong>
-                                        <br>
-                                        <small class="text-muted">{{ sale.inventory_type|title }}</small>
-                                    </td>
-                                    <td>
-                                        <code>{{ sale.imei_number }}</code>
-                                    </td>
-                                    <td>
-                                        {% if sale.customer_type == 'individual' %}
-                                            <span class="badge bg-info">{{ sale.customer_name or 'Individual' }}</span>
+                    {% if sales_groups %}
+                    {% for group in sales_groups %}
+                    <div class="transaction-group mb-4">
+                        <!-- Group Header -->
+                        <div class="group-header">
+                            <div class="row align-items-center">
+                                <div class="col-md-2">
+                                    <div class="transaction-date">
+                                        <i class="fas fa-calendar me-2"></i>
+                                        {{ group.date.strftime('%d %B %Y') }}
+                                    </div>
+                                    <div class="transaction-time text-muted">
+                                        {{ group.date.strftime('%I:%M %p') }}
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="bill-info">
+                                        <span class="bill-label">Invoice #:</span>
+                                        <span class="badge bg-primary">{{ group.bill_number or 'N/A' }}</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="customer-info">
+                                        {% if group.customer_type == 'individual' %}
+                                            <span class="badge bg-info">{{ group.customer_name or 'Individual' }}</span>
                                         {% else %}
-                                            <span class="badge bg-warning">{{ sale.shop.name if sale.shop else 'Shop' }}</span>
+                                            <span class="badge bg-warning">{{ group.shop.name if group.shop else 'Shop' }}</span>
                                         {% endif %}
-                                    </td>
-                                    <td class="text-success fw-bold">PKR {{ "{:,}".format(sale.sale_price) }}</td>
-                                    <td>
-                                        {% if sale.payment_status == 'paid' %}
-                                            <span class="badge bg-success">Paid</span>
-                                        {% elif sale.payment_status == 'partial' %}
-                                            <span class="badge bg-warning">Partial</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="device-count">
+                                        <span class="count-label">Devices:</span>
+                                        <span class="count-value">{{ group.items|length }}</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 text-end">
+                                    <div class="total-amount">
+                                        <span class="amount-label">Total Amount:</span>
+                                        <span class="amount-value">PKR {{ "{:,}".format(group.total_amount) }}</span>
+                                    </div>
+                                    <div class="payment-status">
+                                        {% if group.payment_status == 'paid' %}
+                                            <span class="badge bg-success">FULLY PAID</span>
+                                        {% elif group.payment_status == 'partial' %}
+                                            <span class="badge bg-warning">PARTIAL PAYMENT</span>
                                         {% else %}
-                                            <span class="badge bg-danger">Pending</span>
+                                            <span class="badge bg-danger">PENDING PAYMENT</span>
                                         {% endif %}
-                                    </td>
-                                    <td>
-                                        <div class="d-flex gap-1">
-                                            <a href="{{ url_for('bill', sale_id=sale.id) }}" class="btn btn-sm btn-outline-primary" title="View Bill">
-                                                <i class="fas fa-file-invoice"></i>
-                                            </a>
-                                            <a href="{{ url_for('internal_report', sale_id=sale.id) }}" class="btn btn-sm btn-outline-info" title="Internal Report">
-                                                <i class="fas fa-chart-line"></i>
-                                            </a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Group Items -->
+                        <div class="group-items">
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Device</th>
+                                            <th>IMEI</th>
+                                            <th>Condition</th>
+                                            <th>Price</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in group.items %}
+                                        <tr>
+                                            <td>
+                                                <strong>{{ item.model.brand.name }} {{ item.model.name }}</strong>
+                                            </td>
+                                            <td>
+                                                <code class="imei-code">{{ item.imei_number }}</code>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-{{ 'success' if item.inventory_type == 'new' else 'warning' }}">
+                                                    {{ item.inventory_type.title() }}
+                                                </span>
+                                            </td>
+                                            <td class="text-success fw-bold">
+                                                PKR {{ "{:,}".format(item.sale_price) }}
+                                            </td>
+                                            <td>
+                                                <div class="d-flex gap-1">
+                                                    <a href="{{ url_for('bill', sale_id=item.id) }}" class="btn btn-xs btn-outline-primary" title="View Bill">
+                                                        <i class="fas fa-file-invoice"></i>
+                                                    </a>
+                                                    <a href="{{ url_for('business_report', sale_id=item.id) }}" class="btn btn-xs btn-outline-info" title="Business Report">
+                                                        <i class="fas fa-chart-line"></i>
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- Group Summary -->
+                        {% if group.items|length > 1 %}
+                        <div class="group-summary">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="summary-item">
+                                        <i class="fas fa-mobile-alt me-2"></i>
+                                        <span class="summary-text">{{ group.items|length }} devices in this transaction</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="summary-item">
+                                        <i class="fas fa-clock me-2"></i>
+                                        <span class="summary-text">Transaction completed at {{ group.date.strftime('%I:%M %p') }}</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    {% if group.customer_type == 'shop' and group.total_due > 0 %}
+                                    <div class="summary-item due-amount">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>
+                                        <span class="summary-text">Due: PKR {{ "{:,}".format(group.total_due) }}</span>
+                                    </div>
+                                    {% else %}
+                                    <div class="summary-item">
+                                        <i class="fas fa-check-circle me-2"></i>
+                                        <span class="summary-text">Payment Complete</span>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
                     </div>
+                    {% endfor %}
                     {% else %}
                     <div class="text-center py-5">
                         <i class="fas fa-shopping-cart text-muted" style="font-size: 3rem;"></i>
@@ -123,10 +391,10 @@
         <!-- Purchases Tab -->
         <div class="tab-pane fade" id="purchases" role="tabpanel">
             <div class="card shadow-sm">
-                <div class="card-header">
+                <div class="card-header bg-success text-white">
                     <h5 class="mb-0">
                         <i class="fas fa-shopping-bag me-2"></i>
-                        Purchase History
+                        Purchase Transactions
                     </h5>
                 </div>
                 <div class="card-body">

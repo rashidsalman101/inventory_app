@@ -82,7 +82,7 @@ class Shop(db.Model):
 class Sale(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     model_id = db.Column(db.Integer, db.ForeignKey('model.id'), nullable=False)
-    imei_number = db.Column(db.String(15), nullable=False)
+    imei_number = db.Column(db.Text, nullable=False)  # Supports any IMEI format/length
     sale_price = db.Column(db.Float, nullable=False)
     purchase_price = db.Column(db.Float, nullable=False)  # Auto-fetched from purchase
     profit = db.Column(db.Float, nullable=False)  # Calculated automatically
@@ -304,32 +304,9 @@ def add_purchase():
         flash(f'Number of IMEIs ({len(imei_list)}) must match quantity ({quantity})', 'error')
         return redirect(url_for('new_purchase', model_id=model_id))
     
-    # Validate each IMEI
-    invalid_imeis = []
-    for imei in imei_list:
-        # Validate IMEI format (9-15 digits)
-        if not imei.isdigit() or len(imei) < 9 or len(imei) > 15:
-            invalid_imeis.append(imei)
-            continue
-            
-        # Check if IMEI already exists in purchases
-        purchases = Purchase.query.filter_by(user_id=current_user.id).all()
-        for purchase in purchases:
-            existing_imei_list = json.loads(purchase.imei_numbers)
-            if imei in existing_imei_list:
-                # Check if it was sold
-                existing_sale = Sale.query.filter_by(
-                    imei_number=imei,
-                    user_id=current_user.id
-                ).first()
-                
-                if not existing_sale:
-                    # IMEI exists and not sold - cannot add
-                    invalid_imeis.append(imei)
-                    break
-    
-    if invalid_imeis:
-        flash(f'Cannot add IMEIs: {", ".join(invalid_imeis)} - they already exist in inventory and have not been sold, or have invalid format (must be 9-15 digits)', 'error')
+    # Basic validation - just check if IMEIs are provided
+    if not imei_list:
+        flash('Please provide at least one IMEI number', 'error')
         return redirect(url_for('new_purchase', model_id=model_id))
     
     # Generate bill number if not provided
@@ -369,10 +346,7 @@ def search_imei():
         flash('Please enter an IMEI number', 'error')
         return redirect(url_for('sale_module'))
     
-    # Validate IMEI format (9-15 digits)
-    if not imei.isdigit() or len(imei) < 9 or len(imei) > 15:
-        flash('IMEI must be 9-15 digits', 'error')
-        return redirect(url_for('sale_module'))
+    # Allow any IMEI format - no validation constraints
     
     # Find the purchase containing this IMEI
     purchases = Purchase.query.all()
@@ -396,6 +370,216 @@ def search_imei():
     
     shops = Shop.query.all()
     return render_template('sale_form.html', purchase=found_purchase, imei=imei, shops=shops)
+
+@app.route('/search_multiple_imei', methods=['POST'])
+@login_required
+def search_multiple_imei():
+    """Search for multiple devices by IMEI"""
+    imei_numbers = request.form.get('imei_numbers')
+    
+    if not imei_numbers:
+        flash('Please enter IMEI numbers', 'error')
+        return redirect(url_for('sale_module'))
+    
+    # Process IMEI numbers (split by newlines and clean)
+    imei_list = [imei.strip() for imei in imei_numbers.split('\n') if imei.strip()]
+    
+    if not imei_list:
+        flash('Please enter valid IMEI numbers', 'error')
+        return redirect(url_for('sale_module'))
+    
+    # Find devices for each IMEI
+    found_devices = []
+    not_found_imeis = []
+    already_sold_imeis = []
+    
+    for imei in imei_list:
+        # Find the purchase containing this IMEI
+        purchases = Purchase.query.filter_by(user_id=current_user.id).all()
+        found_purchase = None
+        
+        for purchase in purchases:
+            try:
+                purchase_imei_list = json.loads(purchase.imei_numbers)
+                if imei in purchase_imei_list:
+                    # Check if already sold
+                    existing_sale = Sale.query.filter_by(imei_number=imei, user_id=current_user.id).first()
+                    if existing_sale:
+                        already_sold_imeis.append(imei)
+                        break
+                    
+                    found_purchase = purchase
+                    break
+            except (json.JSONDecodeError, TypeError):
+                continue
+        
+        if found_purchase and imei not in already_sold_imeis:
+            found_devices.append({
+                'imei': imei,
+                'purchase': found_purchase,
+                'model': found_purchase.model,
+                'brand': found_purchase.model.brand if found_purchase.model else None
+            })
+        elif imei not in already_sold_imeis:
+            not_found_imeis.append(imei)
+    
+    # Check for errors
+    error_messages = []
+    if not_found_imeis:
+        error_messages.append(f'IMEIs not found in inventory: {", ".join(not_found_imeis)}')
+    if already_sold_imeis:
+        error_messages.append(f'IMEIs already sold: {", ".join(already_sold_imeis)}')
+    
+    if error_messages:
+        for msg in error_messages:
+            flash(msg, 'error')
+        return redirect(url_for('sale_module'))
+    
+    if not found_devices:
+        flash('No valid devices found for sale', 'error')
+        return redirect(url_for('sale_module'))
+    
+    shops = Shop.query.all()
+    return render_template('multiple_sale_form.html', devices=found_devices, shops=shops)
+
+@app.route('/add_multiple_sale', methods=['POST'])
+@login_required
+def add_multiple_sale():
+    """Process multiple device sale"""
+    try:
+        customer_type = request.form.get('customer_type')
+        pricing_method = request.form.get('pricing_method')
+        
+        if not customer_type or not pricing_method:
+            flash('Please fill in all required fields', 'error')
+            return redirect(url_for('sale_module'))
+        
+        # Get customer details
+        shop_id = None
+        customer_name = None
+        due_date = None
+        total_paid_amount = 0
+        
+        if customer_type == 'individual':
+            customer_name = request.form.get('customer_name')
+        elif customer_type == 'shop':
+            shop_id = request.form.get('shop_id')
+            due_date_str = request.form.get('due_date')
+            if due_date_str:
+                due_date = datetime.strptime(due_date_str, '%Y-%m-%d')
+            total_paid_amount = float(request.form.get('paid_amount') or 0)
+        
+        # Process devices
+        devices_data = []
+        total_sale_amount = 0
+        device_index = 0
+        
+        while True:
+            model_id_key = f'devices[{device_index}][model_id]'
+            if model_id_key not in request.form:
+                break
+                
+            model_id = request.form.get(model_id_key)
+            imei = request.form.get(f'devices[{device_index}][imei]')
+            purchase_price = float(request.form.get(f'devices[{device_index}][purchase_price]'))
+            inventory_type = request.form.get(f'devices[{device_index}][inventory_type]')
+            
+            # Get sale price based on pricing method
+            if pricing_method == 'common':
+                sale_price = float(request.form.get('common_sale_price'))
+            else:
+                sale_price = float(request.form.get(f'devices[{device_index}][sale_price]'))
+            
+            devices_data.append({
+                'model_id': model_id,
+                'imei': imei,
+                'purchase_price': purchase_price,
+                'sale_price': sale_price,
+                'inventory_type': inventory_type,
+                'profit': sale_price - purchase_price
+            })
+            
+            total_sale_amount += sale_price
+            device_index += 1
+        
+        if not devices_data:
+            flash('No devices found to process', 'error')
+            return redirect(url_for('sale_module'))
+        
+        # Generate bill number for the batch
+        bill_number = f"BILL-{datetime.now().strftime('%Y%m%d')}-{Sale.query.count() + 1:04d}"
+        
+        # Create sales records
+        created_sales = []
+        for device in devices_data:
+            # Calculate payment details for this device
+            device_paid_amount = 0
+            device_due_amount = device['sale_price']
+            payment_status = 'paid'
+            
+            if customer_type == 'shop':
+                # Distribute paid amount proportionally
+                if total_paid_amount > 0:
+                    proportion = device['sale_price'] / total_sale_amount
+                    device_paid_amount = total_paid_amount * proportion
+                    device_due_amount = device['sale_price'] - device_paid_amount
+                
+                if device_paid_amount >= device['sale_price']:
+                    payment_status = 'paid'
+                    device_due_amount = 0
+                elif device_paid_amount > 0:
+                    payment_status = 'partial'
+                else:
+                    payment_status = 'pending'
+            else:
+                # Individual customers pay immediately
+                device_paid_amount = device['sale_price']
+                device_due_amount = 0
+                payment_status = 'paid'
+            
+            sale = Sale(
+                model_id=device['model_id'],
+                imei_number=device['imei'],
+                sale_price=device['sale_price'],
+                purchase_price=device['purchase_price'],
+                profit=device['profit'],
+                inventory_type=device['inventory_type'],
+                customer_type=customer_type,
+                shop_id=shop_id,
+                customer_name=customer_name,
+                payment_status=payment_status,
+                paid_amount=device_paid_amount,
+                due_amount=device_due_amount,
+                due_date=due_date,
+                bill_number=bill_number,
+                user_id=current_user.id
+            )
+            
+            db.session.add(sale)
+            created_sales.append(sale)
+        
+        db.session.commit()
+        
+        # Create payment record for shop sales
+        if customer_type == 'shop' and total_paid_amount > 0:
+            payment = Payment(
+                shop_id=shop_id,
+                amount=total_paid_amount,
+                payment_date=datetime.utcnow(),
+                user_id=current_user.id
+            )
+            db.session.add(payment)
+            db.session.commit()
+        
+        flash(f'Multiple sale completed successfully! {len(devices_data)} devices sold. Bill: {bill_number}', 'success')
+        
+        # Redirect to the first sale's bill (they all have the same bill number)
+        return redirect(url_for('bill', sale_id=created_sales[0].id))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error processing multiple sale: {str(e)}', 'error')
+        return redirect(url_for('sale_module'))
 
 @app.route('/add_sale', methods=['POST'])
 @login_required
@@ -537,7 +721,7 @@ def profits_detailed():
             Brand.name,
             db.func.sum(Sale.profit).label('total_profit'),
             db.func.count(Sale.id).label('total_sales')
-        ).join(Sale).filter(
+        ).select_from(Brand).join(Sale, Brand.id == Sale.model_id).filter(
             Sale.user_id == current_user.id
         ).group_by(Brand.name).all()
         
@@ -572,15 +756,59 @@ def profits_detailed():
 @app.route('/transactions')
 @login_required
 def transactions():
-    """Transactions history - sales and purchases without profit details"""
+    """Transactions history - sales and purchases grouped by bill number with optional model filtering"""
     try:
-        # Get all sales (filtered by user, no profit info)
-        sales = Sale.query.filter_by(user_id=current_user.id).order_by(Sale.date.desc()).all()
+        # Get model filter if provided
+        model_id = request.args.get('model_id', type=int)
         
-        # Get all purchases (filtered by user)
+        # Get all sales (filtered by user, no profit info)
+        query = Sale.query.filter_by(user_id=current_user.id)
+        
+        # Apply model filter if specified
+        if model_id:
+            query = query.filter_by(model_id=model_id)
+            flash(f'Showing transactions for selected model only. <a href="{url_for("transactions")}" class="alert-link">View all transactions</a>', 'info')
+        
+        all_sales = query.order_by(Sale.date.desc()).all()
+        
+        # Group sales by bill number
+        sales_groups = {}
+        for sale in all_sales:
+            bill_key = sale.bill_number or f"single_{sale.id}"
+            if bill_key not in sales_groups:
+                sales_groups[bill_key] = {
+                    'bill_number': sale.bill_number,
+                    'date': sale.date,
+                    'customer_type': sale.customer_type,
+                    'customer_name': sale.customer_name,
+                    'shop': sale.shop,
+                    'payment_status': sale.payment_status,
+                    'items': [],
+                    'total_amount': 0,
+                    'total_paid': 0,
+                    'total_due': 0
+                }
+            
+            sales_groups[bill_key]['items'].append(sale)
+            sales_groups[bill_key]['total_amount'] += sale.sale_price
+            sales_groups[bill_key]['total_paid'] += sale.paid_amount
+            sales_groups[bill_key]['total_due'] += sale.due_amount
+            
+            # Update payment status for the group (use the most restrictive status)
+            current_status = sales_groups[bill_key]['payment_status']
+            if sale.payment_status == 'pending' or current_status == 'pending':
+                sales_groups[bill_key]['payment_status'] = 'pending'
+            elif sale.payment_status == 'partial' or current_status == 'partial':
+                sales_groups[bill_key]['payment_status'] = 'partial'
+        
+        # Convert to list and sort by date
+        sales_groups_list = list(sales_groups.values())
+        sales_groups_list.sort(key=lambda x: x['date'], reverse=True)
+        
+        # Get all purchases (filtered by user) - already grouped by nature
         purchases = Purchase.query.filter_by(user_id=current_user.id).order_by(Purchase.date.desc()).all()
         
-        return render_template('transactions.html', sales=sales, purchases=purchases)
+        return render_template('transactions.html', sales_groups=sales_groups_list, purchases=purchases, all_sales=all_sales, model_filter=model_id)
     except Exception as e:
         flash(f'Error loading transactions: {str(e)}', 'error')
         return redirect(url_for('dashboard'))
@@ -732,9 +960,7 @@ def validate_imei():
     if not imei:
         return jsonify({'valid': False, 'message': 'IMEI is required'})
     
-    # Validate IMEI format (9-15 digits)
-    if not imei.isdigit() or len(imei) < 9 or len(imei) > 15:
-        return jsonify({'valid': False, 'message': 'IMEI must be 9-15 digits'})
+    # Allow any IMEI format - no validation constraints
     
     # Check if IMEI already exists in purchases
     purchases = Purchase.query.filter_by(user_id=current_user.id).all()
@@ -775,19 +1001,29 @@ def generate_bill_number():
 @app.route('/bill/<int:sale_id>')
 @login_required
 def bill(sale_id):
-    """Generate bill for sale"""
+    """Generate bill for sale with grouped sales information"""
     sale = Sale.query.filter_by(id=sale_id, user_id=current_user.id).first_or_404()
-    return render_template('bill.html', sale=sale)
+    
+    # Get all sales for grouped transaction display
+    all_sales = []
+    if sale.bill_number:
+        # Find all sales with the same bill number
+        all_sales = Sale.query.filter_by(
+            bill_number=sale.bill_number, 
+            user_id=current_user.id
+        ).order_by(Sale.id).all()
+    
+    return render_template('bill.html', sale=sale, all_sales=all_sales)
 
-@app.route('/internal_report/<int:sale_id>')
+@app.route('/business_report/<int:sale_id>')
 @login_required
-def internal_report(sale_id):
-    """Internal report with profit details for business analysis"""
+def business_report(sale_id):
+    """Business report with profit details for business analysis"""
     # Require profit verification
     if not session.get('profit_verified'):
         return redirect(url_for('profits'))
     sale = Sale.query.filter_by(id=sale_id, user_id=current_user.id).first_or_404()
-    return render_template('internal_report.html', sale=sale)
+    return render_template('business_report.html', sale=sale)
 
 @app.route('/incentives')
 @login_required
@@ -969,7 +1205,7 @@ def pending_payments():
     """View all pending payments"""
     try:
         # Get all shops with pending payments (filtered by user)
-        shops_with_pending = db.session.query(Shop).join(Sale).filter(
+        shops_with_pending = db.session.query(Shop).select_from(Shop).join(Sale, Shop.id == Sale.shop_id).filter(
             Sale.payment_status.in_(['pending', 'partial']),
             Sale.user_id == current_user.id
         ).distinct().all()

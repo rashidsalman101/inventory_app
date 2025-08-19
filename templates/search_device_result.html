@@ -288,9 +288,9 @@
                             <i class="fas fa-file-invoice me-2"></i>
                             View Sale Bill
                         </a>
-                        <a href="{{ url_for('internal_report', sale_id=sale.id) }}" class="btn btn-info">
+                                                        <a href="{{ url_for('business_report', sale_id=sale.id) }}" class="btn btn-info">
                             <i class="fas fa-chart-line me-2"></i>
-                            Internal Report
+                            Business Report
                         </a>
                         {% endif %}
                         
