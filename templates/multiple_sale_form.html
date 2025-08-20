@@ -48,19 +48,30 @@
                                 <label class="btn btn-outline-primary" for="common_price">
                                     <i class="fas fa-equals me-1"></i>Common Price
                                 </label>
-                                <input type="radio" class="btn-check" name="pricing_method" id="individual_price" value="individual">
-                                <label class="btn btn-outline-primary" for="individual_price">
-                                    <i class="fas fa-tags me-1"></i>Individual Prices
-                                </label>
                             </div>
+                            <small class="text-muted">All devices will have the same sale price</small>
                         </div>
                     </div>
 
                     <!-- Customer Details -->
                     <div id="individual_details" style="display: none;">
-                        <div class="mb-3">
-                            <label for="customer_name" class="form-label">Customer Name</label>
-                            <input type="text" class="form-control" id="customer_name" name="customer_name">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="customer_name" class="form-label">Customer Name <small class="text-muted">(Optional)</small></label>
+                                <input type="text" class="form-control" id="customer_name" name="customer_name" placeholder="Enter customer name if available">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="total_paid_amount" class="form-label">Total Amount Paid (PKR)</label>
+                                <input type="number" class="form-control" id="total_paid_amount" name="total_paid_amount" 
+                                       step="0.01" min="0" value="0" onchange="calculateTotalDueAmount()">
+                                <small class="text-muted">Leave as 0 for full payment</small>
+                            </div>
+                        </div>
+                        <div class="mb-3" id="total_due_amount_section" style="display: none;">
+                            <label for="total_due_amount" class="form-label">Total Due Amount (PKR)</label>
+                            <input type="number" class="form-control" id="total_due_amount" name="total_due_amount" 
+                                   step="0.01" min="0" readonly>
+                            <small class="text-muted">This will be calculated automatically</small>
                         </div>
                     </div>
                     
@@ -83,8 +94,21 @@
                                        step="0.01" min="0" value="0" onchange="calculateDueAmount()">
                             </div>
                             <div class="col-md-4">
-                                <label for="due_date" class="form-label">Payment Due Date</label>
+                                <label for="due_date" class="form-label">Payment Due Date <small class="text-muted">(Optional)</small></label>
                                 <input type="date" class="form-control" id="due_date" name="due_date">
+                            </div>
+                        </div>
+                        <div class="mb-3" id="due_amount_alert" style="display: none;">
+                            <hr>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <small class="text-muted">Amount Paid:</small><br>
+                                    <strong id="summary_paid">PKR 0.00</strong>
+                                </div>
+                                <div class="col-md-6">
+                                    <small class="text-muted">Due Amount:</small><br>
+                                    <strong id="summary_due" class="text-warning">PKR 0.00</strong>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -95,7 +119,7 @@
                             <div class="col-md-6">
                                 <label for="common_sale_price" class="form-label">Common Sale Price (PKR)</label>
                                 <input type="number" class="form-control" id="common_sale_price" name="common_sale_price" 
-                                       step="0.01" min="0" onchange="applyCommonPrice()">
+                                       step="0.01" min="0" onchange="applyCommonPrice()" required>
                                 <small class="text-muted">This price will be applied to all devices</small>
                             </div>
                         </div>
@@ -108,9 +132,7 @@
                                 <tr>
                                     <th>Device</th>
                                     <th>IMEI</th>
-                                    <th>Purchase Price</th>
-                                    <th class="individual-price-col" style="display: none;">Sale Price</th>
-                                    <th>Profit</th>
+                                    <th>Condition</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -129,18 +151,9 @@
                                         <code>{{ device.imei }}</code>
                                     </td>
                                     <td>
-                                        <span class="text-danger fw-bold">PKR {{ "{:,.2f}".format(device.purchase.purchase_price) }}</span>
-                                    </td>
-                                    <td class="individual-price-col" style="display: none;">
-                                        <input type="number" class="form-control individual-price-input" 
-                                               name="devices[{{ loop.index0 }}][sale_price]" 
-                                               step="0.01" min="0" 
-                                               data-purchase-price="{{ device.purchase.purchase_price }}"
-                                               data-index="{{ loop.index0 }}"
-                                               onchange="calculateIndividualProfit({{ loop.index0 }})">
-                                    </td>
-                                    <td>
-                                        <span class="profit-display fw-bold" id="profit_{{ loop.index0 }}">PKR 0.00</span>
+                                        <span class="badge bg-{{ 'success' if device.purchase.inventory_type == 'new' else 'warning' }}">
+                                            {{ device.purchase.inventory_type.title() }}
+                                        </span>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -148,11 +161,8 @@
                             <tfoot class="table-light">
                                 <tr>
                                     <th colspan="3">Total</th>
-                                    <th class="individual-price-col" style="display: none;">
-                                        <span id="total_sale_price" class="fw-bold text-success">PKR 0.00</span>
-                                    </th>
                                     <th>
-                                        <span id="total_profit" class="fw-bold text-success">PKR 0.00</span>
+                                        <span class="fw-bold text-success">{{ devices|length }} devices</span>
                                     </th>
                                 </tr>
                             </tfoot>
@@ -163,21 +173,17 @@
                     <div class="alert alert-info">
                         <h6><i class="fas fa-calculator me-2"></i>Sale Summary</h6>
                         <div class="row">
-                            <div class="col-md-3">
-                                <small class="text-muted">Total Purchase:</small><br>
-                                <strong>PKR {{ "{:,.2f}".format(devices|sum(attribute='purchase.purchase_price')) }}</strong>
-                            </div>
-                            <div class="col-md-3">
-                                <small class="text-muted">Total Sale:</small><br>
+                            <div class="col-md-4">
+                                <small class="text-muted">Total Sale Amount:</small><br>
                                 <strong id="summary_sale_price">PKR 0.00</strong>
                             </div>
-                            <div class="col-md-3">
-                                <small class="text-muted">Total Profit:</small><br>
-                                <strong id="summary_profit" class="text-success">PKR 0.00</strong>
-                            </div>
-                            <div class="col-md-3">
+                            <div class="col-md-4">
                                 <small class="text-muted">Device Count:</small><br>
                                 <strong>{{ devices|length }} items</strong>
+                            </div>
+                            <div class="col-md-4">
+                                <small class="text-muted">Customer Type:</small><br>
+                                <strong id="customer_type_display">Not Selected</strong>
                             </div>
                         </div>
                         <div id="due_amount_alert" class="mt-3" style="display: none;">
@@ -210,129 +216,99 @@
 </div>
 
 <script>
-const totalPurchasePrice = {{ devices|sum(attribute='purchase.purchase_price')|float }};
+// Initialize customer type display
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('customer_type_display').textContent = 'Not Selected';
+});
 
 // Handle customer type selection
 document.getElementById('customer_type').addEventListener('change', function() {
     const customerType = this.value;
     const individualDetails = document.getElementById('individual_details');
     const shopDetails = document.getElementById('shop_details');
+    const customerTypeDisplay = document.getElementById('customer_type_display');
     
     if (customerType === 'individual') {
         individualDetails.style.display = 'block';
         shopDetails.style.display = 'none';
-        document.getElementById('customer_name').required = true;
-        document.getElementById('shop_id').required = false;
+        document.getElementById('customer_name').required = false; // Make customer name optional
+        document.getElementById('total_paid_amount').required = true;
+        document.getElementById('total_due_amount_section').style.display = 'block';
         document.getElementById('due_date').required = false;
+        customerTypeDisplay.textContent = 'Individual Customer';
     } else if (customerType === 'shop') {
         individualDetails.style.display = 'none';
         shopDetails.style.display = 'block';
         document.getElementById('customer_name').required = false;
-        document.getElementById('shop_id').required = true;
+        document.getElementById('total_paid_amount').required = false;
+        document.getElementById('total_due_amount_section').style.display = 'none';
         document.getElementById('due_date').required = true;
+        customerTypeDisplay.textContent = 'Shop Customer';
     } else {
         individualDetails.style.display = 'none';
         shopDetails.style.display = 'none';
         document.getElementById('customer_name').required = false;
-        document.getElementById('shop_id').required = false;
+        document.getElementById('total_paid_amount').required = false;
+        document.getElementById('total_due_amount_section').style.display = 'none';
         document.getElementById('due_date').required = false;
+        customerTypeDisplay.textContent = 'Not Selected';
     }
     
     calculateDueAmount();
 });
 
-// Handle pricing method selection
+// Initialize pricing method
 document.addEventListener('DOMContentLoaded', function() {
-    const commonPriceRadio = document.getElementById('common_price');
-    const individualPriceRadio = document.getElementById('individual_price');
-    const commonPriceSection = document.getElementById('common_price_section');
-    const individualPriceCols = document.querySelectorAll('.individual-price-col');
-    
-    function togglePricingMethod() {
-        if (commonPriceRadio.checked) {
-            commonPriceSection.style.display = 'block';
-            individualPriceCols.forEach(col => col.style.display = 'none');
-            document.getElementById('common_sale_price').required = true;
-            document.querySelectorAll('.individual-price-input').forEach(input => {
-                input.required = false;
-            });
-        } else {
-            commonPriceSection.style.display = 'none';
-            individualPriceCols.forEach(col => col.style.display = 'table-cell');
-            document.getElementById('common_sale_price').required = false;
-            document.querySelectorAll('.individual-price-input').forEach(input => {
-                input.required = true;
-            });
-        }
-        updateTotals();
-    }
-    
-    commonPriceRadio.addEventListener('change', togglePricingMethod);
-    individualPriceRadio.addEventListener('change', togglePricingMethod);
+    // Show common price section by default
+    document.getElementById('common_price_section').style.display = 'block';
 });
 
 // Apply common price to all devices
 function applyCommonPrice() {
     const commonPrice = parseFloat(document.getElementById('common_sale_price').value) || 0;
-    const purchasePrices = document.querySelectorAll('input[name*="[purchase_price]"]');
     
-    purchasePrices.forEach((input, index) => {
-        const purchasePrice = parseFloat(input.value);
-        const profit = commonPrice - purchasePrice;
-        
-        // Update profit display
-        const profitDisplay = document.getElementById(`profit_${index}`);
-        profitDisplay.textContent = `PKR ${profit.toFixed(2)}`;
-        profitDisplay.className = `profit-display fw-bold ${profit >= 0 ? 'text-success' : 'text-danger'}`;
-    });
-    
-    updateTotals();
-}
-
-// Calculate individual profit
-function calculateIndividualProfit(index) {
-    const salePriceInput = document.querySelector(`input[name="devices[${index}][sale_price]"]`);
-    const purchasePrice = parseFloat(salePriceInput.dataset.purchasePrice);
-    const salePrice = parseFloat(salePriceInput.value) || 0;
-    const profit = salePrice - purchasePrice;
-    
-    // Update profit display
-    const profitDisplay = document.getElementById(`profit_${index}`);
-    profitDisplay.textContent = `PKR ${profit.toFixed(2)}`;
-    profitDisplay.className = `profit-display fw-bold ${profit >= 0 ? 'text-success' : 'text-danger'}`;
-    
-    updateTotals();
+    if (commonPrice > 0) {
+        updateTotals();
+    }
 }
 
 // Update totals
 function updateTotals() {
-    const commonPriceRadio = document.getElementById('common_price');
-    let totalSalePrice = 0;
-    let totalProfit = 0;
-    
-    if (commonPriceRadio.checked) {
-        const commonPrice = parseFloat(document.getElementById('common_sale_price').value) || 0;
-                 const deviceCount = {{ devices|length|int }};
-        totalSalePrice = commonPrice * deviceCount;
-        totalProfit = totalSalePrice - totalPurchasePrice;
-    } else {
-        const individualPriceInputs = document.querySelectorAll('.individual-price-input');
-        individualPriceInputs.forEach(input => {
-            const salePrice = parseFloat(input.value) || 0;
-            const purchasePrice = parseFloat(input.dataset.purchasePrice);
-            totalSalePrice += salePrice;
-            totalProfit += (salePrice - purchasePrice);
-        });
-    }
+    const commonPrice = parseFloat(document.getElementById('common_sale_price').value) || 0;
+    const deviceCount = parseInt('{{ devices|length }}') || 0;
+    const totalSalePrice = commonPrice * deviceCount;
     
     // Update displays
-    document.getElementById('total_sale_price').textContent = `PKR ${totalSalePrice.toFixed(2)}`;
-    document.getElementById('total_profit').textContent = `PKR ${totalProfit.toFixed(2)}`;
     document.getElementById('summary_sale_price').textContent = `PKR ${totalSalePrice.toFixed(2)}`;
-    document.getElementById('summary_profit').textContent = `PKR ${totalProfit.toFixed(2)}`;
-    document.getElementById('summary_profit').className = `text-${totalProfit >= 0 ? 'success' : 'danger'}`;
     
     calculateDueAmount();
+}
+
+// Calculate due amount for individual customers
+function calculateTotalDueAmount() {
+    const customerType = document.getElementById('customer_type').value;
+    if (customerType !== 'individual') {
+        document.getElementById('total_due_amount_section').style.display = 'none';
+        return;
+    }
+    
+    const totalSaleText = document.getElementById('summary_sale_price').textContent;
+    const totalSalePrice = parseFloat(totalSaleText.replace(/[^0-9.-]+/g, '')) || 0;
+    const paidAmount = parseFloat(document.getElementById('total_paid_amount').value) || 0;
+    const dueAmount = totalSalePrice - paidAmount;
+    
+    const dueAmountInput = document.getElementById('total_due_amount');
+    
+    if (dueAmount > 0) {
+        dueAmountInput.value = dueAmount.toFixed(2);
+        document.getElementById('total_due_amount_section').style.display = 'block';
+    } else if (paidAmount > totalSalePrice) {
+        dueAmountInput.value = `0.00 (Overpayment: PKR ${Math.abs(dueAmount).toFixed(2)})`;
+        document.getElementById('total_due_amount_section').style.display = 'block';
+    } else {
+        dueAmountInput.value = '0.00';
+        document.getElementById('total_due_amount_section').style.display = 'none';
+    }
 }
 
 // Calculate due amount for shop sales
@@ -361,7 +337,6 @@ function calculateDueAmount() {
 // Form validation
 document.getElementById('multipleSaleForm').addEventListener('submit', function(e) {
     const customerType = document.getElementById('customer_type').value;
-    const commonPriceRadio = document.getElementById('common_price');
     
     if (!customerType) {
         e.preventDefault();
@@ -369,26 +344,23 @@ document.getElementById('multipleSaleForm').addEventListener('submit', function(
         return;
     }
     
-    if (commonPriceRadio.checked) {
-        const commonPrice = parseFloat(document.getElementById('common_sale_price').value) || 0;
-        if (commonPrice <= 0) {
+    if (customerType === 'individual') {
+        const customerName = document.getElementById('customer_name').value;
+        const totalPaidAmount = parseFloat(document.getElementById('total_paid_amount').value) || 0;
+        const totalDueAmount = parseFloat(document.getElementById('total_due_amount').value) || 0;
+
+        if (!customerName && totalPaidAmount === 0 && totalDueAmount === 0) {
             e.preventDefault();
-            alert('Please enter a valid common sale price');
+            alert('Please enter a customer name or specify payment details for individual customers.');
             return;
         }
-    } else {
-        const individualPriceInputs = document.querySelectorAll('.individual-price-input');
-        let hasEmptyPrice = false;
-        individualPriceInputs.forEach(input => {
-            if (!input.value || parseFloat(input.value) <= 0) {
-                hasEmptyPrice = true;
-            }
-        });
-        if (hasEmptyPrice) {
-            e.preventDefault();
-            alert('Please enter valid sale prices for all devices');
-            return;
-        }
+    }
+
+    const commonPrice = parseFloat(document.getElementById('common_sale_price').value) || 0;
+    if (commonPrice <= 0) {
+        e.preventDefault();
+        alert('Please enter a valid common sale price');
+        return;
     }
 });
 </script>

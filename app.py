@@ -462,6 +462,7 @@ def add_multiple_sale():
         
         if customer_type == 'individual':
             customer_name = request.form.get('customer_name')
+            total_paid_amount = float(request.form.get('total_paid_amount') or 0)
         elif customer_type == 'shop':
             shop_id = request.form.get('shop_id')
             due_date_str = request.form.get('due_date')
@@ -532,10 +533,23 @@ def add_multiple_sale():
                 else:
                     payment_status = 'pending'
             else:
-                # Individual customers pay immediately
-                device_paid_amount = device['sale_price']
-                device_due_amount = 0
-                payment_status = 'paid'
+                # Individual customers - distribute paid amount proportionally
+                if total_paid_amount > 0:
+                    proportion = device['sale_price'] / total_sale_amount
+                    device_paid_amount = total_paid_amount * proportion
+                    device_due_amount = device['sale_price'] - device_paid_amount
+                else:
+                    device_paid_amount = 0
+                    device_due_amount = device['sale_price']
+                
+                # Set payment status based on amount paid
+                if device_paid_amount >= device['sale_price']:
+                    payment_status = 'paid'
+                    device_due_amount = 0
+                elif device_paid_amount > 0:
+                    payment_status = 'partial'
+                else:
+                    payment_status = 'pending'
             
             sale = Sale(
                 model_id=device['model_id'],
@@ -604,10 +618,20 @@ def add_sale():
     
     if customer_type == 'individual':
         customer_name = request.form.get('customer_name')
-        # Individual customers pay immediately
-        payment_status = 'paid'
-        paid_amount = sale_price
-        due_amount = 0
+        # Get amount paid by individual customer
+        paid_amount = float(request.form.get('paid_amount') or 0)
+        
+        # Calculate due amount
+        due_amount = sale_price - paid_amount
+        
+        # Set payment status based on amount paid
+        if paid_amount >= sale_price:
+            payment_status = 'paid'
+            due_amount = 0
+        elif paid_amount > 0:
+            payment_status = 'partial'
+        else:
+            payment_status = 'pending'
     elif customer_type == 'shop':
         shop_id = request.form.get('shop_id')
         due_date_str = request.form.get('due_date')
@@ -657,6 +681,41 @@ def add_sale():
     
     flash('Sale completed successfully!', 'success')
     return redirect(url_for('dashboard'))
+
+@app.route('/add_payment/<int:sale_id>', methods=['GET', 'POST'])
+@login_required
+def add_payment(sale_id):
+    """Add additional payment to an existing sale"""
+    sale = Sale.query.filter_by(id=sale_id, user_id=current_user.id).first()
+    
+    if not sale:
+        flash('Sale not found!', 'error')
+        return redirect(url_for('transactions'))
+    
+    if request.method == 'POST':
+        additional_payment = float(request.form.get('additional_payment') or 0)
+        
+        if additional_payment <= 0:
+            flash('Please enter a valid payment amount', 'error')
+            return redirect(url_for('add_payment', sale_id=sale_id))
+        
+        # Update payment details
+        sale.paid_amount += additional_payment
+        sale.due_amount = max(0, sale.sale_price - sale.paid_amount)
+        
+        # Update payment status
+        if sale.paid_amount >= sale.sale_price:
+            sale.payment_status = 'paid'
+            sale.due_amount = 0
+        else:
+            sale.payment_status = 'partial'
+        
+        db.session.commit()
+        
+        flash(f'Payment of PKR {additional_payment:,.2f} added successfully!', 'success')
+        return redirect(url_for('transactions'))
+    
+    return render_template('add_payment.html', sale=sale)
 
 @app.route('/profits')
 @login_required
@@ -1147,9 +1206,9 @@ def shop_details(shop_id):
                          recent_sales=recent_sales,
                          recent_payments=recent_payments)
 
-@app.route('/add_payment', methods=['POST'])
+@app.route('/add_shop_payment', methods=['POST'])
 @login_required
-def add_payment():
+def add_shop_payment():
     """Add payment for a shop"""
     shop_id = request.form.get('shop_id')
     amount = float(request.form.get('amount'))

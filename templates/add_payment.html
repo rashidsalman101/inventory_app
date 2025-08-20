@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block title %}Add Payment - Mobile Shop Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 style="font-weight:700;"><i class="fas fa-money-bill-wave me-2"></i>Add Payment</h2>
+    <a href="{{ url_for('transactions') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left me-2"></i>Back to Transactions
+    </a>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-credit-card me-2"></i>Payment Details</h5>
+            </div>
+            <div class="card-body">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+                
+                <!-- Sale Information -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="card border-primary">
+                            <div class="card-body">
+                                <h6 class="card-title text-primary">Device Details</h6>
+                                <p class="mb-1"><strong>Brand:</strong> {{ sale.model.brand.name if sale.model and sale.model.brand else 'Unknown' }}</p>
+                                <p class="mb-1"><strong>Model:</strong> {{ sale.model.name if sale.model else 'Unknown' }}</p>
+                                <p class="mb-1"><strong>IMEI:</strong> {{ sale.imei_number }}</p>
+                                <p class="mb-0"><strong>Sale Date:</strong> {{ sale.date.strftime('%Y-%m-%d') }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card border-success">
+                            <div class="card-body">
+                                <h6 class="card-title text-success">Payment Summary</h6>
+                                <p class="mb-1"><strong>Sale Price:</strong> PKR {{ "{:,.2f}".format(sale.sale_price) }}</p>
+                                <p class="mb-1"><strong>Amount Paid:</strong> PKR {{ "{:,.2f}".format(sale.paid_amount) }}</p>
+                                <p class="mb-1"><strong>Due Amount:</strong> PKR {{ "{:,.2f}".format(sale.due_amount) }}</p>
+                                <p class="mb-0">
+                                    <strong>Status:</strong> 
+                                    <span class="badge bg-{{ 'success' if sale.payment_status == 'paid' else 'warning' if sale.payment_status == 'partial' else 'danger' }}">
+                                        {{ sale.payment_status.upper() }}
+                                    </span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Payment Form -->
+                <form method="POST">
+                    <div class="mb-4">
+                        <label for="additional_payment" class="form-label">Additional Payment Amount (PKR)</label>
+                        <div class="input-group">
+                            <span class="input-group-text">PKR</span>
+                            <input type="number" class="form-control form-control-lg" id="additional_payment" 
+                                   name="additional_payment" step="0.01" min="0.01" 
+                                   max="{{ sale.due_amount }}" required>
+                        </div>
+                        <div class="form-text">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Maximum amount you can add: PKR {{ "{:,.2f}".format(sale.due_amount) }}
+                        </div>
+                    </div>
+                    
+                    <!-- Payment Preview -->
+                    <div class="alert alert-info" id="paymentPreview" style="display: none;">
+                        <h6><i class="fas fa-calculator me-2"></i>Payment Preview</h6>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <small class="text-muted">Current Paid:</small><br>
+                                <strong>PKR {{ "{:,.2f}".format(sale.paid_amount) }}</strong>
+                            </div>
+                            <div class="col-md-4">
+                                <small class="text-muted">Additional Payment:</small><br>
+                                <strong id="previewAdditional">PKR 0.00</strong>
+                            </div>
+                            <div class="col-md-4">
+                                <small class="text-muted">New Total Paid:</small><br>
+                                <strong id="previewTotal">PKR {{ "{:,.2f}".format(sale.paid_amount) }}</strong>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <small class="text-muted">Remaining Due:</small><br>
+                            <strong id="previewRemaining" class="text-warning">PKR {{ "{:,.2f}".format(sale.due_amount) }}</strong>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-success flex-fill" id="submitBtn">
+                            <i class="fas fa-check me-2"></i>Add Payment
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="resetForm()">
+                            <i class="fas fa-undo me-2"></i>Reset
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Calculate payment preview
+document.getElementById('additional_payment').addEventListener('input', function() {
+    const additionalPayment = parseFloat(this.value) || 0;
+    const currentPaid = parseFloat('{{ sale.paid_amount }}') || 0;
+    const salePrice = parseFloat('{{ sale.sale_price }}') || 0;
+    
+    if (additionalPayment > 0) {
+        const newTotalPaid = currentPaid + additionalPayment;
+        const remainingDue = Math.max(0, salePrice - newTotalPaid);
+        
+        document.getElementById('previewAdditional').textContent = `PKR ${additionalPayment.toFixed(2)}`;
+        document.getElementById('previewTotal').textContent = `PKR ${newTotalPaid.toFixed(2)}`;
+        document.getElementById('previewRemaining').textContent = `PKR ${remainingDue.toFixed(2)}`;
+        
+        document.getElementById('paymentPreview').style.display = 'block';
+        
+        // Update button text based on payment status
+        if (remainingDue === 0) {
+            document.getElementById('submitBtn').innerHTML = '<i class="fas fa-check me-2"></i>Complete Payment';
+        } else {
+            document.getElementById('submitBtn').innerHTML = '<i class="fas fa-check me-2"></i>Add Payment';
+        }
+    } else {
+        document.getElementById('paymentPreview').style.display = 'none';
+    }
+});
+
+// Reset form
+function resetForm() {
+    document.getElementById('additional_payment').value = '';
+    document.getElementById('paymentPreview').style.display = 'none';
+    document.getElementById('submitBtn').innerHTML = '<i class="fas fa-check me-2"></i>Add Payment';
+}
+</script>
+{% endblock %} 

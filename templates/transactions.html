@@ -334,6 +334,11 @@
                                                     <a href="{{ url_for('business_report', sale_id=item.id) }}" class="btn btn-xs btn-outline-info" title="Business Report">
                                                         <i class="fas fa-chart-line"></i>
                                                     </a>
+                                                    {% if item.payment_status in ['pending', 'partial'] %}
+                                                    <a href="{{ url_for('add_payment', sale_id=item.id) }}" class="btn btn-xs btn-outline-success" title="Add Payment">
+                                                        <i class="fas fa-money-bill-wave"></i>
+                                                    </a>
+                                                    {% endif %}
                                                 </div>
                                             </td>
                                         </tr>

@@ -98,10 +98,11 @@
                     <div id="multiple_instructions" style="display: none;">
                         <ol>
                             <li>Enter multiple IMEI numbers (one per line)</li>
-                            <li>The system will search for all devices in your inventory</li>
-                            <li>You can set a common sale price or individual prices</li>
-                            <li>The system will calculate total profit for the batch</li>
-                            <li>A consolidated bill will be generated for all items</li>
+                            <li>Or use the scan button to add IMEIs one by one</li>
+                            <li>Each IMEI can only be scanned once</li>
+                            <li>All devices must be available in inventory</li>
+                            <li>Choose pricing method (common or individual)</li>
+                            <li>Complete the sale for all devices at once</li>
                         </ol>
                     </div>
                 </div>
@@ -111,76 +112,73 @@
 </div>
 
 <script>
-// Handle sale type selection
-document.addEventListener('DOMContentLoaded', function() {
-    const singleSaleRadio = document.getElementById('single_sale');
-    const multipleSaleRadio = document.getElementById('multiple_sale');
-    const singleForm = document.getElementById('single_imei_form');
-    const multipleForm = document.getElementById('multiple_imei_form');
-    const singleInstructions = document.getElementById('single_instructions');
-    const multipleInstructions = document.getElementById('multiple_instructions');
-    
-    function toggleSaleType() {
-        if (singleSaleRadio.checked) {
-            singleForm.style.display = 'block';
-            multipleForm.style.display = 'none';
-            singleInstructions.style.display = 'block';
-            multipleInstructions.style.display = 'none';
+// Track scanned IMEIs to prevent duplicates
+let scannedIMEIs = new Set();
+
+// Toggle between single and multiple sale forms
+document.querySelectorAll('input[name="sale_type"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        if (this.value === 'single') {
+            document.getElementById('single_imei_form').style.display = 'block';
+            document.getElementById('multiple_imei_form').style.display = 'none';
+            document.getElementById('single_instructions').style.display = 'block';
+            document.getElementById('multiple_instructions').style.display = 'none';
         } else {
-            singleForm.style.display = 'none';
-            multipleForm.style.display = 'block';
-            singleInstructions.style.display = 'none';
-            multipleInstructions.style.display = 'block';
+            document.getElementById('single_imei_form').style.display = 'none';
+            document.getElementById('multiple_imei_form').style.display = 'block';
+            document.getElementById('single_instructions').style.display = 'none';
+            document.getElementById('multiple_instructions').style.display = 'block';
         }
-    }
-    
-    singleSaleRadio.addEventListener('change', toggleSaleType);
-    multipleSaleRadio.addEventListener('change', toggleSaleType);
+    });
 });
 
-function startScanner() {
-    // Focus on the IMEI input field
-    document.getElementById('imei').focus();
-    
-    // Show a message about scanner
-    const alert = document.createElement('div');
-    alert.className = 'alert alert-info mt-3';
-    alert.innerHTML = '<i class="fas fa-info-circle me-2"></i>Ready to scan! Use your barcode scanner to scan the IMEI.';
-    
-    const form = document.querySelector('#single_imei_form');
-    form.appendChild(alert);
-    
-    // Remove the alert after 5 seconds
-    setTimeout(() => {
-        if (alert.parentNode) {
-            alert.remove();
-        }
-    }, 5000);
-}
-
+// Function to scan multiple IMEIs
 function scanMultipleIMEI() {
-    // Focus on the IMEI textarea
-    document.getElementById('imei_numbers').focus();
-    
-    // Show a message about scanner
-    const alert = document.createElement('div');
-    alert.className = 'alert alert-info mt-3';
-    alert.innerHTML = '<i class="fas fa-info-circle me-2"></i>Ready to scan! Use your barcode scanner to scan multiple IMEIs.';
-    
-    const form = document.querySelector('#multiple_imei_form');
-    form.appendChild(alert);
-    
-    // Remove the alert after 5 seconds
-    setTimeout(() => {
-        if (alert.parentNode) {
-            alert.remove();
+    const imeiInput = prompt('Scan or enter IMEI number:');
+    if (imeiInput && imeiInput.trim()) {
+        const imei = imeiInput.trim();
+        
+        // Check if IMEI already scanned
+        if (scannedIMEIs.has(imei)) {
+            alert('This IMEI has already been scanned!');
+            return;
         }
-    }, 5000);
+        
+        // Add to scanned set
+        scannedIMEIs.add(imei);
+        
+        // Add to textarea
+        const textarea = document.getElementById('imei_numbers');
+        const currentValue = textarea.value;
+        const newValue = currentValue ? currentValue + '\n' + imei : imei;
+        textarea.value = newValue;
+        
+        // Show success message
+        const successMsg = document.createElement('div');
+        successMsg.className = 'alert alert-success alert-dismissible fade show mt-2';
+        successMsg.innerHTML = `
+            <i class="fas fa-check me-2"></i>IMEI ${imei} added successfully
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        textarea.parentNode.insertBefore(successMsg, textarea.nextSibling);
+        
+        // Auto-remove success message after 3 seconds
+        setTimeout(() => {
+            if (successMsg.parentNode) {
+                successMsg.remove();
+            }
+        }, 3000);
+    }
 }
 
-// Auto-submit functionality removed - allow any IMEI format
-document.getElementById('imei').addEventListener('input', function(e) {
-    // No format restrictions - accept any input
+// Function to start barcode scanner (placeholder for future implementation)
+function startScanner() {
+    alert('Barcode scanner functionality will be implemented in future versions.');
+}
+
+// Clear scanned IMEIs when form is submitted
+document.getElementById('multiple_imei_form').addEventListener('submit', function() {
+    scannedIMEIs.clear();
 });
 </script>
 {% endblock %} 
