@@ -1,0 +1,11 @@
+# Production Environment Variables for cPanel
+# Replace these values with your actual cPanel database credentials
+
+# Database Configuration
+DATABASE_URL=mysql+pymysql://iottraders_inventory_user:Imad123456!@#$%^@localhost/iottraders_mobile_inventory
+SECRET_KEY=your-super-secure-production-secret-key-change-this
+FLASK_DEBUG=False
+FLASK_ENV=production
+
+# Example DATABASE_URL format:
+# DATABASE_URL=mysql+pymysql://inventory_user:your_password@localhost/mobile_inventory 

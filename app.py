@@ -15,9 +15,25 @@ from email.mime.base import MIMEBase
 from email import encoders
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your-secret-key-change-in-production'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///mobile_inventory.db'
+
+# Load environment variables
+from dotenv import load_dotenv
+load_dotenv()
+
+# Database configuration - supports both SQLite (local) and MySQL (production)
+if os.getenv('DATABASE_URL'):
+    # Production: Use MySQL from environment variable
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
+else:
+    # Local development: Use SQLite
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///mobile_inventory.db'
+
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-change-in-production')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_pre_ping': True,
+    'pool_recycle': 300,
+}
 
 db = SQLAlchemy(app)
 login_manager = LoginManager()
@@ -67,6 +83,12 @@ class Purchase(db.Model):
     date = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     user = db.relationship('User', backref='purchases')
+    
+    # Payment tracking fields (similar to Sale model)
+    payment_status = db.Column(db.String(20), default='paid')  # 'paid', 'pending', 'partial'
+    paid_amount = db.Column(db.Float, default=0.0)
+    due_amount = db.Column(db.Float, default=0.0)
+    due_date = db.Column(db.DateTime, nullable=True)  # Optional due date for supplier credit
 
 class Shop(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -120,6 +142,18 @@ class Incentive(db.Model):
     date = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     user = db.relationship('User', backref='incentives')
+
+class SupplierPayment(db.Model):
+    """Track payments made to suppliers for purchases"""
+    id = db.Column(db.Integer, primary_key=True)
+    supplier_id = db.Column(db.Integer, db.ForeignKey('supplier.id'), nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    payment_date = db.Column(db.DateTime, default=datetime.utcnow)
+    payment_method = db.Column(db.String(50), default='cash')  # 'cash', 'bank_transfer', 'cheque'
+    reference_number = db.Column(db.String(100), nullable=True)  # For bank transfers/cheques
+    notes = db.Column(db.Text, nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user = db.relationship('User', backref='supplier_payments')
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -288,7 +322,7 @@ def new_purchase(model_id):
 @app.route('/add_purchase', methods=['POST'])
 @login_required
 def add_purchase():
-    """Add new purchase"""
+    """Add new purchase with payment tracking"""
     model_id = request.form.get('model_id')
     inventory_type = request.form.get('inventory_type')
     quantity = int(request.form.get('quantity'))
@@ -296,6 +330,10 @@ def add_purchase():
     imei_numbers = request.form.get('imei_numbers')  # Textarea with IMEIs
     supplier_id = request.form.get('supplier_id')
     bill_number = request.form.get('bill_number')
+    
+    # Payment tracking fields
+    paid_amount = float(request.form.get('paid_amount') or 0)
+    due_date_str = request.form.get('due_date')
     
     # Process IMEI numbers (split by newlines and clean)
     imei_list = [imei.strip() for imei in imei_numbers.split('\n') if imei.strip()]
@@ -309,11 +347,32 @@ def add_purchase():
         flash('Please provide at least one IMEI number', 'error')
         return redirect(url_for('new_purchase', model_id=model_id))
     
+    # Calculate total purchase amount and due amount
+    total_amount = purchase_price * quantity
+    due_amount = total_amount - paid_amount
+    
+    # Set payment status based on amount paid
+    if paid_amount >= total_amount:
+        payment_status = 'paid'
+        due_amount = 0
+    elif paid_amount > 0:
+        payment_status = 'partial'
+    else:
+        payment_status = 'pending'
+    
+    # Parse due date if provided
+    due_date = None
+    if due_date_str:
+        try:
+            due_date = datetime.strptime(due_date_str, '%Y-%m-%d')
+        except ValueError:
+            due_date = None
+    
     # Generate bill number if not provided
     if not bill_number:
         bill_number = f"PURCHASE-{datetime.now().strftime('%Y%m%d')}-{Purchase.query.count() + 1:04d}"
     
-    # Save purchase
+    # Save purchase with payment tracking
     purchase = Purchase(
         model_id=model_id,
         inventory_type=inventory_type,
@@ -322,13 +381,79 @@ def add_purchase():
         imei_numbers=json.dumps(imei_list),
         supplier_id=supplier_id if supplier_id else None,
         bill_number=bill_number,
+        payment_status=payment_status,
+        paid_amount=paid_amount,
+        due_amount=due_amount,
+        due_date=due_date,
         user_id=current_user.id
     )
     db.session.add(purchase)
     db.session.commit()
     
-    flash(f'Purchase added successfully! Quantity: {quantity}, Bill: {bill_number}', 'success')
+    # Create supplier payment record if any amount was paid
+    if paid_amount > 0 and supplier_id:
+        supplier_payment = SupplierPayment(
+            supplier_id=supplier_id,
+            amount=paid_amount,
+            payment_method='cash',  # Default method
+            notes=f'Payment for purchase bill: {bill_number}',
+            user_id=current_user.id
+        )
+        db.session.add(supplier_payment)
+        db.session.commit()
+    
+    flash(f'Purchase added successfully! Quantity: {quantity}, Bill: {bill_number}, Payment: {payment_status}', 'success')
     return redirect(url_for('dashboard'))
+
+@app.route('/add_supplier_payment/<int:purchase_id>', methods=['GET', 'POST'])
+@login_required
+def add_supplier_payment(purchase_id):
+    """Add payment to supplier for existing purchase"""
+    purchase = Purchase.query.get_or_404(purchase_id)
+    
+    # Ensure user owns this purchase
+    if purchase.user_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('dashboard'))
+    
+    if request.method == 'POST':
+        amount = float(request.form.get('amount'))
+        payment_method = request.form.get('payment_method')
+        reference_number = request.form.get('reference_number')
+        notes = request.form.get('notes')
+        
+        if amount <= 0:
+            flash('Payment amount must be greater than 0', 'error')
+            return redirect(url_for('add_supplier_payment', purchase_id=purchase_id))
+        
+        # Create supplier payment record
+        supplier_payment = SupplierPayment(
+            supplier_id=purchase.supplier_id,
+            amount=amount,
+            payment_method=payment_method,
+            reference_number=reference_number,
+            notes=notes,
+            user_id=current_user.id
+        )
+        db.session.add(supplier_payment)
+        
+        # Update purchase payment status
+        purchase.paid_amount += amount
+        purchase.due_amount = max(0, purchase.due_amount - amount)
+        
+        # Update payment status
+        if purchase.due_amount == 0:
+            purchase.payment_status = 'paid'
+        else:
+            purchase.payment_status = 'partial'
+        
+        db.session.commit()
+        
+        flash(f'Payment of PKR {amount:,.2f} added successfully!', 'success')
+        return redirect(url_for('dashboard'))
+    
+    # GET request - show payment form
+    return render_template('add_supplier_payment.html', purchase=purchase)
 
 @app.route('/sale')
 @login_required

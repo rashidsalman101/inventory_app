@@ -413,7 +413,8 @@
                                     <th>Device</th>
                                     <th>Type</th>
                                     <th>Quantity</th>
-                                    <th>Purchase Price</th>
+                                    <th>Total Amount</th>
+                                    <th>Payment Status</th>
                                     <th>Supplier</th>
                                     <th>Actions</th>
                                 </tr>
@@ -436,7 +437,17 @@
                                     <td>
                                         <span class="badge bg-primary">{{ purchase.quantity }}</span>
                                     </td>
-                                    <td class="text-danger fw-bold">PKR {{ "{:,}".format(purchase.purchase_price) }}</td>
+                                    <td class="text-danger fw-bold">PKR {{ "{:,}".format(purchase.purchase_price * purchase.quantity) }}</td>
+                                    <td>
+                                        <span class="badge {% if purchase.payment_status == 'paid' %}bg-success{% elif purchase.payment_status == 'partial' %}bg-warning{% else %}bg-danger{% endif %}">
+                                            {{ purchase.payment_status|title }}
+                                        </span>
+                                        <br>
+                                        <small class="text-muted">
+                                            Paid: PKR {{ "{:,}".format(purchase.paid_amount) }}<br>
+                                            Due: PKR {{ "{:,}".format(purchase.due_amount) }}
+                                        </small>
+                                    </td>
                                     <td>
                                         {% if purchase.supplier %}
                                             <span class="badge bg-info">{{ purchase.supplier.name }}</span>
@@ -449,6 +460,11 @@
                                             <button class="btn btn-sm btn-outline-info" title="View IMEIs" onclick="viewIMEIs('{{ purchase.imei_numbers }}')">
                                                 <i class="fas fa-barcode"></i>
                                             </button>
+                                            {% if purchase.payment_status in ['pending', 'partial'] %}
+                                            <a href="{{ url_for('add_supplier_payment', purchase_id=purchase.id) }}" class="btn btn-sm btn-outline-success" title="Add Payment">
+                                                <i class="fas fa-credit-card"></i>
+                                            </a>
+                                            {% endif %}
                                         </div>
                                     </td>
                                 </tr>

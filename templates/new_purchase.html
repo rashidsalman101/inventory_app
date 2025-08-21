@@ -102,6 +102,56 @@
                             </div>
                         </div>
                         
+                        <!-- Payment Tracking Section -->
+                        <div class="card mt-3 mb-3">
+                            <div class="card-header bg-info text-white">
+                                <h6 class="mb-0"><i class="fas fa-credit-card me-2"></i>Payment Details</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="paid_amount" class="form-label">Amount Paid (PKR)</label>
+                                            <input type="number" class="form-control" id="paid_amount" name="paid_amount" 
+                                                   step="0.01" min="0" value="0" onchange="updatePaymentSummary()">
+                                            <div class="form-text">How much you have paid to supplier</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="due_date" class="form-label">Due Date (Optional)</label>
+                                            <input type="date" class="form-control" id="due_date" name="due_date">
+                                            <div class="form-text">When you need to pay the remaining amount</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label class="form-label">Payment Summary</label>
+                                            <div class="border rounded p-2 bg-light">
+                                                <div class="row text-center">
+                                                    <div class="col-4">
+                                                        <small class="text-muted">Total</small>
+                                                        <div class="fw-bold" id="total_amount_display">PKR 0</div>
+                                                    </div>
+                                                    <div class="col-4">
+                                                        <small class="text-muted">Paid</small>
+                                                        <div class="fw-bold text-success" id="paid_amount_display">PKR 0</div>
+                                                    </div>
+                                                    <div class="col-4">
+                                                        <small class="text-muted">Due</small>
+                                                        <div class="fw-bold text-danger" id="due_amount_display">PKR 0</div>
+                                                    </div>
+                                                </div>
+                                                <div class="text-center mt-2">
+                                                    <span class="badge" id="payment_status_badge">Paid</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <div class="mb-4">
                             <label for="imei_numbers" class="form-label">IMEI Numbers</label>
                             <textarea class="form-control" id="imei_numbers" name="imei_numbers" rows="6" 
@@ -257,6 +307,9 @@ function setupIMEIValidation() {
             imeiStatus.textContent = imeis.length;
             imeiStatus.className = 'badge bg-info';
         }
+        
+        // Update payment summary when quantity changes
+        updatePaymentSummary();
     }
     
     imeiTextarea.addEventListener('input', updateIMEICount);
@@ -264,6 +317,38 @@ function setupIMEIValidation() {
     
     // Initial count
     updateIMEICount();
+    
+    // Add event listeners for payment fields
+    document.getElementById('purchase_price').addEventListener('input', updatePaymentSummary);
+    document.getElementById('paid_amount').addEventListener('input', updatePaymentSummary);
+}
+
+// Update payment summary
+function updatePaymentSummary() {
+    const quantity = parseInt(document.getElementById('quantity').value) || 0;
+    const purchasePrice = parseFloat(document.getElementById('purchase_price').value) || 0;
+    const paidAmount = parseFloat(document.getElementById('paid_amount').value) || 0;
+    
+    const totalAmount = quantity * purchasePrice;
+    const dueAmount = Math.max(0, totalAmount - paidAmount);
+    
+    // Update displays
+    document.getElementById('total_amount_display').textContent = `PKR ${totalAmount.toLocaleString()}`;
+    document.getElementById('paid_amount_display').textContent = `PKR ${paidAmount.toLocaleString()}`;
+    document.getElementById('due_amount_display').textContent = `PKR ${dueAmount.toLocaleString()}`;
+    
+    // Update payment status badge
+    const statusBadge = document.getElementById('payment_status_badge');
+    if (paidAmount >= totalAmount) {
+        statusBadge.textContent = 'Paid';
+        statusBadge.className = 'badge bg-success';
+    } else if (paidAmount > 0) {
+        statusBadge.textContent = 'Partial';
+        statusBadge.className = 'badge bg-warning';
+    } else {
+        statusBadge.textContent = 'Pending';
+        statusBadge.className = 'badge bg-danger';
+    }
 }
 
 // Add supplier

@@ -247,7 +247,8 @@
                                     <th>Date</th>
                                     <th>Device</th>
                                     <th>Qty</th>
-                                    <th>Price</th>
+                                    <th>Total</th>
+                                    <th>Payment</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -260,7 +261,16 @@
                                     <td>
                                         <span class="badge bg-primary">{{ purchase.quantity }}</span>
                                     </td>
-                                    <td class="text-danger">PKR {{ "{:,}".format(purchase.purchase_price) }}</td>
+                                    <td class="text-danger">PKR {{ "{:,}".format(purchase.purchase_price * purchase.quantity) }}</td>
+                                    <td>
+                                        <span class="badge {% if purchase.payment_status == 'paid' %}bg-success{% elif purchase.payment_status == 'partial' %}bg-warning{% else %}bg-danger{% endif %}">
+                                            {{ purchase.payment_status|title }}
+                                        </span>
+                                        <br>
+                                        <small class="text-muted">
+                                            {{ "{:,}".format(purchase.paid_amount) }}/{{ "{:,}".format(purchase.purchase_price * purchase.quantity) }}
+                                        </small>
+                                    </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>

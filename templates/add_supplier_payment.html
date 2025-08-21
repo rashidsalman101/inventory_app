@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}Add Supplier Payment - Mobile Shop Manager{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 style="font-weight:700;"><i class="fas fa-credit-card me-2"></i>Add Supplier Payment</h2>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+        </a>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <!-- Purchase Details Card -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Purchase Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Bill Number:</strong> {{ purchase.bill_number }}</p>
+                            <p><strong>Date:</strong> {{ purchase.date.strftime('%B %d, %Y') }}</p>
+                            <p><strong>Quantity:</strong> {{ purchase.quantity }}</p>
+                            <p><strong>Purchase Price:</strong> PKR {{ "%.2f"|format(purchase.purchase_price) }} per device</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Total Amount:</strong> PKR {{ "%.2f"|format(purchase.purchase_price * purchase.quantity) }}</p>
+                            <p><strong>Amount Paid:</strong> PKR {{ "%.2f"|format(purchase.paid_amount) }}</p>
+                            <p><strong>Amount Due:</strong> PKR {{ "%.2f"|format(purchase.due_amount) }}</p>
+                            <p><strong>Payment Status:</strong> 
+                                <span class="badge {% if purchase.payment_status == 'paid' %}bg-success{% elif purchase.payment_status == 'partial' %}bg-warning{% else %}bg-danger{% endif %}">
+                                    {{ purchase.payment_status.title() }}
+                                </span>
+                            </p>
+                        </div>
+                    </div>
+                    
+                    {% if purchase.supplier %}
+                    <div class="mt-3 p-3 bg-light rounded">
+                        <h6><i class="fas fa-truck me-2"></i>Supplier Information</h6>
+                        <p><strong>Name:</strong> {{ purchase.supplier.name }}</p>
+                        {% if purchase.supplier.contact_info %}
+                        <p><strong>Contact:</strong> {{ purchase.supplier.contact_info }}</p>
+                        {% endif %}
+                        {% if purchase.supplier.address %}
+                        <p><strong>Address:</strong> {{ purchase.supplier.address }}</p>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Payment Form Card -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-plus-circle me-2"></i>Add Payment</h5>
+                </div>
+                <div class="card-body">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+
+                    <form method="POST" id="paymentForm">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="amount" class="form-label">Payment Amount (PKR)</label>
+                                    <input type="number" class="form-control" id="amount" name="amount" 
+                                           step="0.01" min="0.01" max="{{ purchase.due_amount }}" required>
+                                    <div class="form-text">
+                                        Maximum amount due: PKR {{ "%.2f"|format(purchase.due_amount) }}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="payment_method" class="form-label">Payment Method</label>
+                                    <select class="form-control" id="payment_method" name="payment_method" required>
+                                        <option value="cash">Cash</option>
+                                        <option value="bank_transfer">Bank Transfer</option>
+                                        <option value="cheque">Cheque</option>
+                                        <option value="mobile_banking">Mobile Banking</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="reference_number" class="form-label">Reference Number</label>
+                                    <input type="text" class="form-control" id="reference_number" name="reference_number" 
+                                           placeholder="Transaction ID, Cheque number, etc.">
+                                    <div class="form-text">Optional - for bank transfers, cheques, etc.</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="notes" class="form-label">Notes</label>
+                                    <textarea class="form-control" id="notes" name="notes" rows="2" 
+                                              placeholder="Any additional notes about this payment"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Payment Preview -->
+                        <div class="alert alert-info">
+                            <h6><i class="fas fa-calculator me-2"></i>Payment Preview</h6>
+                            <div class="row text-center">
+                                <div class="col-4">
+                                    <small class="text-muted">Current Due</small>
+                                    <div class="fw-bold text-danger">PKR {{ "%.2f"|format(purchase.due_amount) }}</div>
+                                </div>
+                                <div class="col-4">
+                                    <small class="text-muted">Payment Amount</small>
+                                    <div class="fw-bold text-success" id="payment_preview">PKR 0</div>
+                                </div>
+                                <div class="col-4">
+                                    <small class="text-muted">Remaining Due</small>
+                                    <div class="fw-bold text-warning" id="remaining_due">PKR {{ "%.2f"|format(purchase.due_amount) }}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-success flex-fill">
+                                <i class="fas fa-save me-2"></i>Add Payment
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="history.back()">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const amountInput = document.getElementById('amount');
+    const maxAmount = parseFloat('{{ purchase.due_amount }}');
+    
+    // Set max amount
+    amountInput.max = maxAmount;
+    
+    // Update payment preview
+    function updatePaymentPreview() {
+        const amount = parseFloat(amountInput.value) || 0;
+        const remaining = Math.max(0, maxAmount - amount);
+        
+        document.getElementById('payment_preview').textContent = `PKR ${amount.toLocaleString()}`;
+        document.getElementById('remaining_due').textContent = `PKR ${remaining.toLocaleString()}`;
+        
+        // Validate amount
+        if (amount > maxAmount) {
+            amountInput.setCustomValidity(`Amount cannot exceed PKR ${maxAmount.toLocaleString()}`);
+        } else if (amount <= 0) {
+            amountInput.setCustomValidity('Amount must be greater than 0');
+        } else {
+            amountInput.setCustomValidity('');
+        }
+    }
+    
+    amountInput.addEventListener('input', updatePaymentPreview);
+    
+    // Form validation
+    document.getElementById('paymentForm').addEventListener('submit', function(e) {
+        const amount = parseFloat(amountInput.value) || 0;
+        
+        if (amount <= 0) {
+            e.preventDefault();
+            alert('Payment amount must be greater than 0');
+            return;
+        }
+        
+        if (amount > maxAmount) {
+            e.preventDefault();
+            alert(`Payment amount cannot exceed the due amount (PKR ${maxAmount.toLocaleString()})`);
+            return;
+        }
+    });
+});
+</script>
+{% endblock %} 
